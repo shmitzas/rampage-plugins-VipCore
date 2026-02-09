@@ -78,7 +78,7 @@ jobs:
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
         run: |
-          NUPKG=$(find ./nupkgs -name "VIPCore.Contract.*.nupkg" | sort -V | tail -1)
+          NUPKG=$(find ./nupkgs -name "SwiftlyS2.VIPCore.Contract.*.nupkg" | sort -V | tail -1)
           if [ -z "$NUPKG" ]; then
             echo "::warning::No VIPCore.Contract nupkg found, skipping NuGet publish"
             exit 0
