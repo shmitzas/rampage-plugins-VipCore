@@ -138,7 +138,7 @@ public partial class VIP_GoldMember : BasePlugin {
     {
       if (!_vipApi.IsClientVip(player))
       {
-        _vipApi.GiveClientTemporaryVip(player, _config.VipGroup, _config.Duration);
+        _vipApi.GiveClientVip(player, _config.VipGroup, _config.Duration);
         _grantedByUs[player.SteamID] = true;
       }
       else if (!_grantedByUs.ContainsKey(player.SteamID))

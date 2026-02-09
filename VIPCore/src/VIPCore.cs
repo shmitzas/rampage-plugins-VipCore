@@ -8,7 +8,6 @@ using VIPCore.Services;
 using VIPCore.Database;
 using VIPCore.Database.Repositories;
 using VIPCore.Config;
-using VIPCore.Models;
 using VIPCore.Contract;
 using VIPCore.Api;
 
@@ -142,6 +141,24 @@ public partial class VIPCore : BasePlugin
         }
     }
 
+    private void OnSteamAPIActivated()
+    {
+        if (_serviceProvider == null) return;
+
+        var serverIdentifier = _serviceProvider.GetRequiredService<ServerIdentifier>();
+        Task.Run(async () =>
+        {
+            try
+            {
+                await serverIdentifier.InitializeAsync();
+            }
+            catch (Exception ex)
+            {
+                Core.Logger.LogError(ex, "[VIPCore] Failed to initialize server identifier on SteamAPI activation.");
+            }
+        });
+    }
+
     public VIPCore(ISwiftlyCore core) : base(core)
     {
         _vipCoreApi = new VipCoreApiV1(core);
@@ -201,6 +218,7 @@ public partial class VIPCore : BasePlugin
         // Hot-reload cleanup: tear down previous state to avoid double-subscriptions and leaked services
         if (hotReload)
         {
+            Core.Event.OnSteamAPIActivated -= OnSteamAPIActivated;
             Core.Event.OnClientPutInServer -= OnClientPutInServer;
             Core.Event.OnClientDisconnected -= OnClientDisconnected;
 
@@ -293,7 +311,8 @@ public partial class VIPCore : BasePlugin
             .AddSingleton<FeatureService>()
             .AddSingleton<VipService>()
             .AddSingleton<MenuService>()
-            .AddSingleton<ManageMenuService>();
+            .AddSingleton<ManageMenuService>()
+            .AddSingleton<ServerIdentifier>();
 
         // Register VipConfig via IOptionsMonitor<T> for hot-reload support
         services.AddOptionsWithValidateOnStart<VipConfig>().BindConfiguration("vip");
@@ -313,27 +332,23 @@ public partial class VIPCore : BasePlugin
             Core.Logger.LogError(ex, "[VIPCore] Failed to run database migrations.");
         }
 
-        // Database Setup
-        Task.Run(async () =>
+        // Server auto-detection: on hot-reload Steam API is already active, so initialize immediately
+        Core.Event.OnSteamAPIActivated += OnSteamAPIActivated;
+        if (hotReload)
         {
-            try
+            var serverIdentifier = _serviceProvider.GetRequiredService<ServerIdentifier>();
+            Task.Run(async () =>
             {
-                var userRepo = _serviceProvider.GetRequiredService<IUserRepository>();
-                if (_config != null && !await userRepo.ServerExistsAsync(_config.ServerIP, _config.ServerPort))
+                try
                 {
-                    await userRepo.AddServerAsync(new VipServer
-                    {
-                        serverId = _config.ServerId,
-                        serverIp = _config.ServerIP,
-                        port = _config.ServerPort
-                    });
+                    await serverIdentifier.InitializeAsync();
                 }
-            }
-            catch (Exception ex)
-            {
-                Core.Logger.LogError(ex, "[VIPCore] Failed to register server in database.");
-            }
-        });
+                catch (Exception ex)
+                {
+                    Core.Logger.LogError(ex, "[VIPCore] Failed to initialize server identifier on hot-reload.");
+                }
+            });
+        }
 
         // Initialize Services
         var cookieService = _serviceProvider.GetRequiredService<CookieService>();
@@ -356,6 +371,7 @@ public partial class VIPCore : BasePlugin
 
     public override void Unload()
     {
+        Core.Event.OnSteamAPIActivated -= OnSteamAPIActivated;
         Core.Event.OnClientPutInServer -= OnClientPutInServer;
         Core.Event.OnClientDisconnected -= OnClientDisconnected;
 

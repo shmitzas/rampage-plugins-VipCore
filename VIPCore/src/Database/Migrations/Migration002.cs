@@ -2,8 +2,8 @@ using FluentMigrator;
 
 namespace VIPCore.Database.Migrations;
 
-[Migration(20260201170001)]
-public class CreateVipServersTable : Migration
+[Migration(2)]
+public class Migration002 : Migration
 {
     public override void Up()
     {

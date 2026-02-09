@@ -39,10 +39,10 @@ public interface IVipCoreApiV1
     public bool PlayerHasFeature(IPlayer player, string featureKey);
 
     /// <summary>
-    /// Grants temporary VIP to a player. Time interpretation depends on the server's TimeMode setting.
+    /// Grants VIP to a player. Time interpretation depends on the server's TimeMode setting.
     /// If the player is already VIP, this does nothing.
     /// </summary>
-    public void GiveClientTemporaryVip(IPlayer player, string group, int time);
+    public void GiveClientVip(IPlayer player, string group, int time);
 
     /// <summary>
     /// Removes VIP from a player. Does nothing if the player is not VIP.

@@ -49,7 +49,7 @@ Here's an example configuration:
     // Which VIP group to grant (must match a group in vip_groups.jsonc)
     "VipGroup": "VIP",
 
-    // Duration passed to GiveClientTemporaryVip
+    // Duration passed to GiveClientVip
     // 0 = temporary (VIP only while DNS is in the name, revoked when removed)
     // Any other value = permanent grant using VIPCore's TimeMode (seconds/minutes/hours/days)
     "Duration": 0,

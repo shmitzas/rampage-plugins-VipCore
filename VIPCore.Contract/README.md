@@ -49,7 +49,7 @@ Add the NuGet package to your module project:
 | `GetFeatureValue<T>()` | Read feature configuration from group |
 | `GetPlayerCookie<T>()` | Retrieve persistent player data |
 | `SetPlayerCookie<T>()` | Store persistent player data |
-| `GiveClientTemporaryVip()` | Grant temporary VIP to player |
+| `GiveClientVip()` | Grant VIP to player |
 | `RemoveClientVip()` | Remove VIP from player |
 
 ### Enums

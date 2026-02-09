@@ -2,6 +2,7 @@ using System.Data;
 using FluentMigrator.Runner;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using VIPCore.Database.Migrations;
 
 namespace VIPCore.Database;
 
@@ -14,6 +15,7 @@ public static class MigrationRunner
             .ConfigureRunner(rb =>
             {
                 ConfigureDatabase(rb, dbConnection);
+                rb.WithVersionTable(new CustomMetadataTable());
                 rb.ScanIn(typeof(MigrationRunner).Assembly).For.Migrations();
             })
             .AddLogging(lb => lb.AddFluentMigratorConsole())

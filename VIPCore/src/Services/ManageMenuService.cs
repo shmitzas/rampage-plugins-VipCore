@@ -17,7 +17,8 @@ public class ManageMenuService(
     VipService vipService,
     IUserRepository userRepository,
     IOptionsMonitor<VipConfig> coreConfigMonitor,
-    GroupsConfig groupsConfig)
+    GroupsConfig groupsConfig,
+    ServerIdentifier serverIdentifier)
 {
     private VipConfig coreConfig => coreConfigMonitor.CurrentValue;
 
@@ -60,7 +61,7 @@ public class ManageMenuService(
                 {
                     try
                     {
-                        var users = await userRepository.GetAllUsersAsync(coreConfig.ServerId);
+                        var users = await userRepository.GetAllUsersAsync(serverIdentifier.ServerId);
                         var userList = users.ToList();
                         core.Scheduler.NextTick(() => OpenManageUsersListMenu(args.Player, userList));
                     }

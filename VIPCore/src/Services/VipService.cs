@@ -18,7 +18,8 @@ public class VipService(
     FeatureService featureService,
     CookieService cookieService,
     IOptionsMonitor<VipConfig> coreConfigMonitor,
-    GroupsConfig groupsConfig)
+    GroupsConfig groupsConfig,
+    ServerIdentifier serverIdentifier)
 {
     private VipConfig coreConfig => coreConfigMonitor.CurrentValue;
     private readonly ConcurrentDictionary<ulong, VipUser> _users = new();
@@ -39,12 +40,12 @@ public class VipService(
     {
         if (player.IsFakeClient) return;
 
-        var user = await userRepository.GetUserAsync((long)player.SteamID, coreConfig.ServerId);
+        var user = await userRepository.GetUserAsync((long)player.SteamID, serverIdentifier.ServerId);
         if (user != null)
         {
             if (user.expires != 0 && user.expires < DateTimeOffset.UtcNow.ToUnixTimeSeconds())
             {
-                await userRepository.DeleteUserAsync((long)player.SteamID, coreConfig.ServerId);
+                await userRepository.DeleteUserAsync((long)player.SteamID, serverIdentifier.ServerId);
                 core.Logger.LogInformation("[VIPCore] VIP expired for player {Name} ({SteamId})", player.Controller.PlayerName, player.SteamID);
                 return;
             }
@@ -114,7 +115,7 @@ public class VipService(
             account_id = accountId,
             name = name,
             lastvisit = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-            sid = coreConfig.ServerId,
+            sid = serverIdentifier.ServerId,
             group = group,
             expires = expires
         };
@@ -124,7 +125,7 @@ public class VipService(
 
     public async Task RemoveVip(long accountId)
     {
-        await userRepository.DeleteUserAsync(accountId, coreConfig.ServerId);
+        await userRepository.DeleteUserAsync(accountId, serverIdentifier.ServerId);
         _users.TryRemove((ulong)accountId, out _);
     }
 

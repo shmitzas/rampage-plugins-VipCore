@@ -152,7 +152,7 @@ public class VipCoreApiV1 : IVipCoreApiV1
 
     public bool IsClientVip(IPlayer player) => VipService.IsClientVip(player);
 
-    public void GiveClientTemporaryVip(IPlayer player, string group, int time)
+    public void GiveClientVip(IPlayer player, string group, int time)
     {
         if (_serviceProvider == null) return;
         if (IsClientVip(player)) return;
