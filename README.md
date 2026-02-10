@@ -66,8 +66,6 @@ VIPCore uses two config files:
 | `Delay` | `2.0` | General delay value (seconds) used by VIPCore where applicable. |
 | `DatabaseConnection` | `"default"` | Database connection name from your SwiftlyS2 database configuration. |
 | `TimeMode` | `0` | Time unit for `vip_adduser` and management menus: `0=seconds`, `1=minutes`, `2=hours`, `3=days`. |
-| `UseCenterHtmlMenu` | `true` | Use the center HTML menu style when available. |
-| `ReOpenMenuAfterItemClick` | `false` | If enabled, reopens the VIP menu after selecting a feature item. |
 | `VipLogging` | `true` | Enables debug logging related to VIP loading/feature initialization. |
 
 #### Example
@@ -78,8 +76,6 @@ VIPCore uses two config files:
     "Delay": 2.0,
     "DatabaseConnection": "default",
     "TimeMode": 0,
-    "UseCenterHtmlMenu": true,
-    "ReOpenMenuAfterItemClick": false,
     "VipLogging": true
   }
 }
@@ -90,6 +86,7 @@ VIPCore uses two config files:
 Define groups and the features they grant.
 
 - A group is a named entry under `vip_groups.Groups` (e.g. `VIP`, `MVIP`).
+- Each group can optionally define a `Weight` (integer). If a player has multiple valid VIP groups, VIPCore selects the active group with the highest `Weight`.
 - Features are defined under `Values`.
 - A feature value can be:
   - `1` / `0` (simple enabled/disabled defaults for toggle features)
@@ -102,6 +99,7 @@ Define groups and the features they grant.
   "vip_groups": {
     "Groups": {
       "VIP": {
+        "Weight": 10,
         "Values": {
           "vip.zeus": 1,
           "vip.armor": { "Armor": 100 },
@@ -109,6 +107,7 @@ Define groups and the features they grant.
         }
       },
       "MVIP": {
+        "Weight": 20,
         "Values": {
           "vip.armor": { "Armor": 50 }
         }

@@ -39,13 +39,14 @@ VIPCore is the central VIP management plugin for SwiftlyS2. It provides database
 Main plugin configuration including database connection and server settings.
 
 ### vip_groups.jsonc
-Define VIP groups and their features. Example:
+Define VIP groups and their features. Each group can optionally define a `Weight` (integer). If a player has multiple valid VIP groups, VIPCore selects the active group with the highest `Weight`.
 
 ```jsonc
 {
   "vip_groups": {
     "Groups": {
       "GOLD": {
+        "Weight": 20,
         "Values": {
           "vip.health": { "Health": 150 },
           "vip.armor": { "Armor": 100 },
@@ -54,6 +55,7 @@ Define VIP groups and their features. Example:
         }
       },
       "SILVER": {
+        "Weight": 10,
         "Values": {
           "vip.health": { "Health": 120 },
           "vip.armor": { "Armor": 50 }

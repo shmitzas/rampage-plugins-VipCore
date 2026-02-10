@@ -7,8 +7,6 @@ public class VipConfig
     public float Delay { get; set; } = 2.0f;
     public string DatabaseConnection { get; set; } = "default";
     public int TimeMode { get; set; } = 0;
-    public bool UseCenterHtmlMenu { get; set; } = true;
-    public bool ReOpenMenuAfterItemClick { get; set; } = false;
     public bool VipLogging { get; set; } = true;
 }
 
