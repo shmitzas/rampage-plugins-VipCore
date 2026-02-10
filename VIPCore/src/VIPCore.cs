@@ -241,7 +241,12 @@ public partial class VIPCore : BasePlugin
 
                         if (values != null && !foundGroups.ContainsKey(groupName))
                         {
-                            foundGroups[groupName] = new VipGroup { Values = values, ValuesSection = valuesSection };
+                            var weight = 0;
+                            var weightStr = groupSectionCast.GetSection("Weight").Value;
+                            if (!string.IsNullOrEmpty(weightStr))
+                                int.TryParse(weightStr, out weight);
+
+                            foundGroups[groupName] = new VipGroup { Weight = weight, Values = values, ValuesSection = valuesSection };
                         }
                     }
                 }

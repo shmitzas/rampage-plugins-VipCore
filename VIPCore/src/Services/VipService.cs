@@ -40,34 +40,70 @@ public class VipService(
     {
         if (player.IsFakeClient) return;
 
-        var user = await userRepository.GetUserAsync((long)player.SteamID, serverIdentifier.ServerId);
-        if (user != null)
+        var allGroups = (await userRepository.GetUserGroupsAsync((long)player.SteamID, serverIdentifier.ServerId)).ToList();
+        
+        if (allGroups.Count == 0) return;
+
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var expiredGroups = allGroups.Where(u => u.expires != 0 && u.expires < now).ToList();
+        var validGroups = allGroups.Where(u => u.expires == 0 || u.expires >= now).ToList();
+
+        foreach (var expired in expiredGroups)
         {
-            if (user.expires != 0 && user.expires < DateTimeOffset.UtcNow.ToUnixTimeSeconds())
-            {
-                await userRepository.DeleteUserAsync((long)player.SteamID, serverIdentifier.ServerId);
-                core.Logger.LogInformation("[VIPCore] VIP expired for player {Name} ({SteamId})", player.Controller.PlayerName, player.SteamID);
-                return;
-            }
-
-            var vipUser = new VipUser
-            {
-                account_id = user.account_id,
-                name = user.name,
-                lastvisit = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-                sid = user.sid,
-                group = user.group,
-                expires = user.expires
-            };
-
-            InitializeFeaturesForUser(vipUser);
-            _users[player.SteamID] = vipUser;
-            
-            await userRepository.UpdateUserAsync(vipUser);
-            
-            if (coreConfig.VipLogging)
-                core.Logger.LogDebug("[VIPCore] Loaded VIP player {Name} ({SteamId}) with group {Group}", player.Controller.PlayerName, player.SteamID, user.group);
+            await userRepository.DeleteUserGroupAsync(expired.account_id, expired.sid, expired.group);
+            core.Logger.LogInformation("[VIPCore] VIP group '{Group}' expired for player {Name} ({SteamId})", expired.group, player.Controller.PlayerName, player.SteamID);
         }
+
+        if (validGroups.Count == 0) return;
+
+        var activeUser = ResolveHighestWeightGroup(validGroups);
+        if (activeUser == null) return;
+
+        var vipUser = new VipUser
+        {
+            account_id = activeUser.account_id,
+            name = activeUser.name,
+            lastvisit = now,
+            sid = activeUser.sid,
+            group = activeUser.group,
+            expires = activeUser.expires,
+            OwnedGroups = validGroups.Select(u => u.group).ToList()
+        };
+
+        InitializeFeaturesForUser(vipUser);
+        _users[player.SteamID] = vipUser;
+
+        foreach (var g in validGroups)
+        {
+            g.lastvisit = now;
+            g.name = player.Controller.PlayerName;
+            await userRepository.UpdateUserAsync(g);
+        }
+        
+        if (coreConfig.VipLogging)
+            core.Logger.LogDebug("[VIPCore] Loaded VIP player {Name} ({SteamId}) with active group {Group} (owns: {OwnedGroups})", 
+                player.Controller.PlayerName, player.SteamID, activeUser.group, string.Join(", ", vipUser.OwnedGroups));
+    }
+
+    private User? ResolveHighestWeightGroup(List<User> validGroups)
+    {
+        User? best = null;
+        int bestWeight = int.MinValue;
+
+        foreach (var user in validGroups)
+        {
+            var groupName = groupsConfig.Groups.Keys.FirstOrDefault(k => k.Equals(user.group, StringComparison.OrdinalIgnoreCase));
+            if (groupName == null || !groupsConfig.Groups.TryGetValue(groupName, out var groupConfig))
+                continue;
+
+            if (groupConfig.Weight > bestWeight)
+            {
+                bestWeight = groupConfig.Weight;
+                best = user;
+            }
+        }
+
+        return best ?? validGroups.FirstOrDefault();
     }
 
     public void UnloadPlayer(IPlayer player)
@@ -127,6 +163,11 @@ public class VipService(
     {
         await userRepository.DeleteUserAsync(accountId, serverIdentifier.ServerId);
         _users.TryRemove((ulong)accountId, out _);
+    }
+
+    public async Task RemoveVipGroup(long accountId, string group)
+    {
+        await userRepository.DeleteUserGroupAsync(accountId, serverIdentifier.ServerId, group);
     }
 
     public void InitializeFeatureForLoadedPlayers(string featureKey)

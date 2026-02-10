@@ -14,6 +14,8 @@ public class User
     [System.ComponentModel.DataAnnotations.Key]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
     public long sid { get; set; }
+    [System.ComponentModel.DataAnnotations.Key]
+    [DatabaseGenerated(DatabaseGeneratedOption.None)]
     public required string group { get; set; }
     public long expires { get; set; }
 }

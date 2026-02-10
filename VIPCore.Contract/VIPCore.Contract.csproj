@@ -17,7 +17,7 @@
     <!-- NuGet Package Settings -->
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageId>SwiftlyS2.VIPCore.Contract</PackageId>
-    <PackageVersion>1.0.0</PackageVersion>
+    <PackageVersion>1.0.1</PackageVersion>
     <Authors>aga</Authors>
     <Description>Contract interfaces for VIPCore plugin system for SwiftlyS2</Description>
     <PackageTags>swiftlys2;cs2;vip;plugin;contract</PackageTags>

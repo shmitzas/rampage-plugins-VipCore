@@ -19,6 +19,7 @@ public class GroupsConfig
 
 public class VipGroup
 {
+    public int Weight { get; set; } = 0;
     public Dictionary<string, object> Values { get; set; } = new();
     
     /// <summary>

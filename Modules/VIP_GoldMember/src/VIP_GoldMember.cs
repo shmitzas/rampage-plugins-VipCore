@@ -132,7 +132,7 @@ public partial class VIP_GoldMember : BasePlugin {
     var playerName = player.Controller?.PlayerName;
     if (string.IsNullOrEmpty(playerName)) return;
 
-    var hasDns = playerName.Contains(_config.Dns, StringComparison.OrdinalIgnoreCase);
+    var hasDns = playerName.ToLower().Contains(_config.Dns.ToLower());
 
     if (hasDns)
     {

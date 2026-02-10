@@ -17,7 +17,7 @@ public class Migration001 : Migration
                 .WithColumn("group").AsString(64).NotNullable()
                 .WithColumn("expires").AsInt64().NotNullable();
 
-            Create.PrimaryKey("PK_vip_users").OnTable("vip_users").Columns("account_id", "sid");
+            Create.PrimaryKey("PK_vip_users").OnTable("vip_users").Columns("account_id", "sid", "group");
         }
     }
 

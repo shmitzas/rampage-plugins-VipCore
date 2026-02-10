@@ -10,10 +10,12 @@ namespace VIPCore.Database.Repositories;
 public interface IUserRepository
 {
     Task<User?> GetUserAsync(long accountId, long serverId);
+    Task<IEnumerable<User>> GetUserGroupsAsync(long accountId, long serverId);
     Task<IEnumerable<User>> GetExpiredUsersAsync(long serverId, long currentTime);
     Task AddUserAsync(User user);
     Task UpdateUserAsync(User user);
     Task DeleteUserAsync(long accountId, long serverId);
+    Task DeleteUserGroupAsync(long accountId, long serverId, string group);
     Task<bool> ServerExistsAsync(string ip, int port);
     Task AddServerAsync(VipServer server);
     Task<long> GetServerIdAsync(string ip, int port);
@@ -37,6 +39,13 @@ public class UserRepository(DatabaseConnectionFactory connectionFactory) : IUser
         using var db = connectionFactory.CreateConnection();
         var users = await db.SelectAsync<User>(u => u.account_id == accountId && u.sid == serverId);
         return users.FirstOrDefault();
+    }
+
+    public async Task<IEnumerable<User>> GetUserGroupsAsync(long accountId, long serverId)
+    {
+        using var db = connectionFactory.CreateConnection();
+        var users = await db.SelectAsync<User>(u => u.account_id == accountId && u.sid == serverId);
+        return users.ToList();
     }
 
     public async Task<IEnumerable<User>> GetExpiredUsersAsync(long serverId, long currentTime)
@@ -68,9 +77,16 @@ public class UserRepository(DatabaseConnectionFactory connectionFactory) : IUser
     public async Task DeleteUserAsync(long accountId, long serverId)
     {
         using var db = connectionFactory.CreateConnection();
-        await db.ExecuteAsync(
-            "DELETE FROM vip_users WHERE account_id = @accountId AND sid = @serverId",
-            new { accountId, serverId });
+        var groups = await db.SelectAsync<User>(u => u.account_id == accountId && u.sid == serverId);
+        foreach (var user in groups)
+            await db.DeleteAsync(user);
+    }
+
+    public async Task DeleteUserGroupAsync(long accountId, long serverId, string group)
+    {
+        using var db = connectionFactory.CreateConnection();
+        var user = new User { account_id = accountId, sid = serverId, group = group, name = string.Empty };
+        await db.DeleteAsync(user);
     }
 
     public async Task<bool> ServerExistsAsync(string ip, int port)

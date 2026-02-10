@@ -155,7 +155,6 @@ public class VipCoreApiV1 : IVipCoreApiV1
     public void GiveClientVip(IPlayer player, string group, int time)
     {
         if (_serviceProvider == null) return;
-        if (IsClientVip(player)) return;
         if (!player.IsValid) return;
 
         var steamId = (long)player.SteamID;
@@ -226,6 +225,12 @@ public class VipCoreApiV1 : IVipCoreApiV1
     public string GetClientVipGroup(IPlayer player)
     {
         return VipService.GetVipUser(player.SteamID)?.group ?? string.Empty;
+    }
+
+    public string[] GetClientVipGroups(IPlayer player)
+    {
+        var user = VipService.GetVipUser(player.SteamID);
+        return user?.OwnedGroups.ToArray() ?? Array.Empty<string>();
     }
 
     public string[] GetVipGroups()

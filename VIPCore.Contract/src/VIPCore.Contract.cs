@@ -52,6 +52,7 @@ public interface IVipCoreApiV1
     public bool IsCoreReady();
 
     public string GetClientVipGroup(IPlayer player);
+    public string[] GetClientVipGroups(IPlayer player);
     public string[] GetVipGroups();
 
     /// <summary>

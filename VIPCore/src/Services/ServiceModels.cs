@@ -23,4 +23,5 @@ public class PlayerCookie
 public class VipUser : User
 {
     public ConcurrentDictionary<string, FeatureState> FeatureStates { get; set; } = new();
+    public List<string> OwnedGroups { get; set; } = new();
 }
