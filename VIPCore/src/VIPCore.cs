@@ -4,6 +4,7 @@ using SwiftlyS2.Shared.Events;
 using SwiftlyS2.Shared.Commands;
 using SwiftlyS2.Shared.Players;
 using SwiftlyS2.Shared.Translation;
+using Cookies.Contract;
 using VIPCore.Services;
 using VIPCore.Database;
 using VIPCore.Database.Repositories;
@@ -18,18 +19,13 @@ using System.IO;
 
 namespace VIPCore;
 
-// Local marker interface for Cookies API - allows compile-time generic usage
-public interface IPlayerCookiesAPIv1
-{
-}
-
 [PluginMetadata(Id = "VIPCore", Version = "1.0.0", Name = "VIPCore", Author = "aga", Description = "Core VIP management plugin ported to SwiftlyS2.")]
 public partial class VIPCore : BasePlugin
 {
     private VipConfig? _config;
     private GroupsConfig? _groupsConfig;
 
-    private object? _playerCookiesApi;
+    private Cookies.Contract.IPlayerCookiesAPIv1? _playerCookiesApi;
     private IInterfaceManager? _interfaceManager;
     private CancellationTokenSource? _cookiesResolveRetryCts;
 
@@ -47,7 +43,7 @@ public partial class VIPCore : BasePlugin
             if (!_interfaceManager.HasSharedInterface("Cookies.Player.v1"))
                 return;
 
-            var cookiesApi = _interfaceManager.GetSharedInterface<IPlayerCookiesAPIv1>("Cookies.Player.v1");
+            var cookiesApi = _interfaceManager.GetSharedInterface<Cookies.Contract.IPlayerCookiesAPIv1>("Cookies.Player.v1");
             if (cookiesApi == null)
                 return;
 

@@ -2,3 +2,4 @@ build/
 obj/
 examples/
 deploy.ps1
+NuGet.config
