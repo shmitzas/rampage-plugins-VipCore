@@ -92,13 +92,13 @@ public class ManageMenuService(
             var player = core.PlayerManager.GetPlayer(i);
             if (player == null || player.IsFakeClient) continue;
 
-            var accountId = player.SteamID;
+            var steamId = player.SteamID;
             var playerName = player.Controller.PlayerName;
 
-            var option = new ButtonMenuOption($"{playerName} ({accountId})");
+            var option = new ButtonMenuOption($"{playerName} ({steamId})");
             option.Click += async (sender, args) =>
             {
-                core.Scheduler.NextTick(() => OpenAddVipSelectGroupMenu(args.Player, accountId, playerName));
+                core.Scheduler.NextTick(() => OpenAddVipSelectGroupMenu(args.Player, steamId, playerName));
                 await ValueTask.CompletedTask;
             };
             builder.AddOption(option);
@@ -108,7 +108,7 @@ public class ManageMenuService(
         core.MenusAPI.OpenMenuForPlayer(admin, menu);
     }
 
-    private void OpenAddVipSelectGroupMenu(IPlayer admin, long accountId, string playerName)
+    private void OpenAddVipSelectGroupMenu(IPlayer admin, long steamId, string playerName)
     {
         var localizer = core.Translation.GetPlayerLocalizer(admin);
         var builder = core.MenusAPI.CreateBuilder();
@@ -120,7 +120,7 @@ public class ManageMenuService(
             var option = new ButtonMenuOption(group);
             option.Click += async (sender, args) =>
             {
-                core.Scheduler.NextTick(() => OpenAddVipSelectTimeMenu(args.Player, accountId, playerName, group));
+                core.Scheduler.NextTick(() => OpenAddVipSelectTimeMenu(args.Player, steamId, playerName, group));
                 await ValueTask.CompletedTask;
             };
             builder.AddOption(option);
@@ -130,7 +130,7 @@ public class ManageMenuService(
         core.MenusAPI.OpenMenuForPlayer(admin, menu);
     }
 
-    private void OpenAddVipSelectTimeMenu(IPlayer admin, long accountId, string playerName, string group)
+    private void OpenAddVipSelectTimeMenu(IPlayer admin, long steamId, string playerName, string group)
     {
         var localizer = core.Translation.GetPlayerLocalizer(admin);
         var builder = core.MenusAPI.CreateBuilder();
@@ -154,28 +154,28 @@ public class ManageMenuService(
                     {
                         try
                         {
-                            await vipService.AddVip(accountId, playerName, group, t);
+                            await vipService.AddVip(steamId, playerName, group, t);
 
                             core.Scheduler.NextTick(() =>
                             {
                                 var loc = core.Translation.GetPlayerLocalizer(args.Player);
                                 var displayLabel = loc[timeKey];
-                                args.Player.SendMessage(MessageType.Chat, loc["manage.chat.AddedVip", playerName, accountId, group, displayLabel]);
+                                args.Player.SendMessage(MessageType.Chat, loc["manage.chat.AddedVip", playerName, steamId, group, displayLabel]);
 
-                                var target = core.PlayerManager.GetPlayerFromSteamId(accountId);
+                                var target = core.PlayerManager.GetPlayerFromSteamId(steamId);
                                 if (target != null)
                                 {
                                     Task.Run(async () =>
                                     {
                                         try { await vipService.LoadPlayer(target); }
-                                        catch (Exception ex) { core.Logger.LogError(ex, "[VIPCore] Failed to load newly added VIP player {SteamId}", accountId); }
+                                        catch (Exception ex) { core.Logger.LogError(ex, "[VIPCore] Failed to load newly added VIP player {SteamId}", steamId); }
                                     });
                                 }
                             });
                         }
                         catch (Exception ex)
                         {
-                            core.Logger.LogError(ex, "[VIPCore] Failed to add VIP user {SteamId}", accountId);
+                            core.Logger.LogError(ex, "[VIPCore] Failed to add VIP user {SteamId}", steamId);
                             var loc = core.Translation.GetPlayerLocalizer(args.Player);
                             core.Scheduler.NextTick(() => args.Player.SendMessage(MessageType.Chat, loc["manage.chat.FailedAddVip", ex.Message]));
                         }
@@ -196,27 +196,27 @@ public class ManageMenuService(
                 {
                     try
                     {
-                        await vipService.AddVip(accountId, playerName, group, 0);
+                        await vipService.AddVip(steamId, playerName, group, 0);
 
                         core.Scheduler.NextTick(() =>
                         {
                             var loc = core.Translation.GetPlayerLocalizer(args.Player);
-                            args.Player.SendMessage(MessageType.Chat, loc["manage.chat.AddedVipPermanent", playerName, accountId, group]);
+                            args.Player.SendMessage(MessageType.Chat, loc["manage.chat.AddedVipPermanent", playerName, steamId, group]);
 
-                            var target = core.PlayerManager.GetPlayerFromSteamId(accountId);
+                            var target = core.PlayerManager.GetPlayerFromSteamId(steamId);
                             if (target != null)
                             {
                                 Task.Run(async () =>
                                 {
                                     try { await vipService.LoadPlayer(target); }
-                                    catch (Exception ex) { core.Logger.LogError(ex, "[VIPCore] Failed to load newly added VIP player {SteamId}", accountId); }
+                                    catch (Exception ex) { core.Logger.LogError(ex, "[VIPCore] Failed to load newly added VIP player {SteamId}", steamId); }
                                 });
                             }
                         });
                     }
                     catch (Exception ex)
                     {
-                        core.Logger.LogError(ex, "[VIPCore] Failed to add VIP user {SteamId}", accountId);
+                        core.Logger.LogError(ex, "[VIPCore] Failed to add VIP user {SteamId}", steamId);
                         var loc = core.Translation.GetPlayerLocalizer(args.Player);
                         core.Scheduler.NextTick(() => args.Player.SendMessage(MessageType.Chat, loc["manage.chat.FailedAddVip", ex.Message]));
                     }
@@ -389,7 +389,7 @@ public class ManageMenuService(
         core.MenusAPI.OpenMenuForPlayer(admin, menu);
     }
 
-    private void OpenAddGroupMenu(IPlayer admin, ulong accountId, string playerName, List<User> existingGroups)
+    private void OpenAddGroupMenu(IPlayer admin, ulong steamId, string playerName, List<User> existingGroups)
     {
         var localizer = core.Translation.GetPlayerLocalizer(admin);
         var builder = core.MenusAPI.CreateBuilder();
@@ -405,7 +405,7 @@ public class ManageMenuService(
             option.Enabled = !alreadyHas;
             option.Click += async (sender, args) =>
             {
-                core.Scheduler.NextTick(() => OpenAddVipSelectTimeMenu(args.Player, accountId, playerName, group));
+                core.Scheduler.NextTick(() => OpenAddVipSelectTimeMenu(args.Player, steamId, playerName, group));
                 await ValueTask.CompletedTask;
             };
             builder.AddOption(option);

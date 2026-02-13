@@ -13,8 +13,8 @@ using Microsoft.Extensions.Options;
 namespace VIPCore.Services;
 
 public class VipService(
-    ISwiftlyCore core, 
-    IUserRepository userRepository, 
+    ISwiftlyCore core,
+    IUserRepository userRepository,
     FeatureService featureService,
     CookieService cookieService,
     IOptionsMonitor<VipConfig> coreConfigMonitor,
@@ -22,7 +22,7 @@ public class VipService(
     ServerIdentifier serverIdentifier)
 {
     private VipConfig coreConfig => coreConfigMonitor.CurrentValue;
-    private readonly ConcurrentDictionary<long, VipUser> _users = new();
+    private readonly ConcurrentDictionary<ulong, VipUser> _users = new();
 
     public bool IsClientVip(IPlayer player)
     {
@@ -30,9 +30,9 @@ public class VipService(
         return _users.TryGetValue(player.SteamID, out var user) && (user.expires == 0 || user.expires > DateTimeOffset.UtcNow.ToUnixTimeSeconds());
     }
 
-    public VipUser? GetVipUser(long accountId)
+    public VipUser? GetVipUser(ulong steamId)
     {
-        _users.TryGetValue(accountId, out var user);
+        _users.TryGetValue(steamId, out var user);
         return user;
     }
 
@@ -40,13 +40,13 @@ public class VipService(
     {
         if (player.IsFakeClient) return;
 
-        var allGroups = (await userRepository.GetUserGroupsAsync(player.SteamID, serverIdentifier.ServerId)).ToList();
+        var allGroups = (await userRepository.GetUserGroupsAsync((long)player.SteamID, serverIdentifier.ServerId)).ToList();
 
         if (allGroups.Count == 0) return;
 
-        var nowUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        var expiredGroups = allGroups.Where(u => u.expires != 0 && u.expires < nowUnix).ToList();
-        var validGroups = allGroups.Where(u => u.expires == 0 || u.expires >= nowUnix).ToList();
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var expiredGroups = allGroups.Where(u => u.expires != 0 && u.expires < now).ToList();
+        var validGroups = allGroups.Where(u => u.expires == 0 || u.expires >= now).ToList();
 
         foreach (var expired in expiredGroups)
         {
@@ -63,7 +63,7 @@ public class VipService(
         {
             account_id = activeUser.account_id,
             name = activeUser.name,
-            lastvisit = nowUnix,
+            lastvisit = now,
             sid = activeUser.sid,
             group = activeUser.group,
             expires = activeUser.expires,
@@ -75,13 +75,13 @@ public class VipService(
 
         foreach (var g in validGroups)
         {
-            g.lastvisit = nowUnix;
+            g.lastvisit = now;
             g.name = player.Controller.PlayerName;
             await userRepository.UpdateUserAsync(g);
         }
 
         if (coreConfig.VipLogging)
-            core.Logger.LogDebug("[VIPCore] Loaded VIP player {Name} ({SteamId}) with active group {Group} (owns: {OwnedGroups})", 
+            core.Logger.LogDebug("[VIPCore] Loaded VIP player {Name} ({SteamId}) with active group {Group} (owns: {OwnedGroups})",
                 player.Controller.PlayerName, player.SteamID, activeUser.group, string.Join(", ", vipUser.OwnedGroups));
     }
 
@@ -126,7 +126,7 @@ public class VipService(
         var groupName = groupsConfig.Groups.Keys.FirstOrDefault(k => k.Equals(user.group, StringComparison.OrdinalIgnoreCase));
         if (groupName == null || !groupsConfig.Groups.TryGetValue(groupName, out var group))
         {
-            core.Logger.LogWarning("[VIPCore] Group '{Group}' not found in config for user {SteamId}", user.group, user.account_id);
+            core.Logger.LogWarning("[VIPCore] Group '{Group}' not found in config for user {AccountId}", user.group, user.account_id);
             return;
         }
 
@@ -138,7 +138,7 @@ public class VipService(
                 continue;
             }
 
-            var cookieVal = cookieService.GetCookie<int?>(user.account_id, feature.Key);
+            var cookieVal = cookieService.GetCookie<int?>((ulong)user.account_id, feature.Key);
             user.FeatureStates[feature.Key] = cookieVal.HasValue ? (FeatureState)cookieVal.Value : FeatureState.Enabled;
         }
     }
@@ -162,7 +162,7 @@ public class VipService(
     public async Task RemoveVip(long accountId)
     {
         await userRepository.DeleteUserAsync(accountId, serverIdentifier.ServerId);
-        _users.TryRemove(accountId, out _);
+        _users.TryRemove((ulong)accountId, out _);
     }
 
     public async Task RemoveVipGroup(long accountId, string group)
@@ -175,7 +175,7 @@ public class VipService(
         foreach (var kvp in _users)
         {
             var user = kvp.Value;
-            
+
             if (user.FeatureStates.ContainsKey(featureKey))
                 continue;
 
@@ -189,11 +189,11 @@ public class VipService(
                 continue;
             }
 
-            var cookieVal = cookieService.GetCookie<int?>(user.account_id, featureKey);
+            var cookieVal = cookieService.GetCookie<int?>((ulong)user.account_id, featureKey);
             user.FeatureStates[featureKey] = cookieVal.HasValue ? (FeatureState)cookieVal.Value : FeatureState.Enabled;
 
             if (coreConfig.VipLogging)
-                core.Logger.LogDebug("[VIPCore] Initialized late-registered feature '{Feature}' for loaded player {SteamId} (Group: {Group}, State: {State})", 
+                core.Logger.LogDebug("[VIPCore] Initialized late-registered feature '{Feature}' for loaded player {AccountId} (Group: {Group}, State: {State})",
                 featureKey, user.account_id, user.group, user.FeatureStates[featureKey]);
         }
     }
@@ -202,13 +202,12 @@ public class VipService(
     {
         if (time <= 0) return 0;
         var now = DateTimeOffset.UtcNow;
-        var expiresDateTime = coreConfig.TimeMode switch
+        return coreConfig.TimeMode switch
         {
-            1 => now.AddMinutes(time),
-            2 => now.AddHours(time),
-            3 => now.AddDays(time),
-            _ => now.AddSeconds(time)
+            1 => now.AddMinutes(time).ToUnixTimeSeconds(),
+            2 => now.AddHours(time).ToUnixTimeSeconds(),
+            3 => now.AddDays(time).ToUnixTimeSeconds(),
+            _ => now.AddSeconds(time).ToUnixTimeSeconds()
         };
-        return expiresDateTime.ToUnixTimeSeconds();
     }
 }

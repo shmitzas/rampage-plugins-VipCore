@@ -11,7 +11,7 @@ public interface IUserRepository
 {
     Task<User?> GetUserAsync(long accountId, long serverId);
     Task<IEnumerable<User>> GetUserGroupsAsync(long accountId, long serverId);
-    Task<IEnumerable<User>> GetExpiredUsersAsync(long serverId, DateTime currentTime);
+    Task<IEnumerable<User>> GetExpiredUsersAsync(long serverId, long currentTime);
     Task AddUserAsync(User user);
     Task UpdateUserAsync(User user);
     Task DeleteUserAsync(long accountId, long serverId);
@@ -48,11 +48,10 @@ public class UserRepository(DatabaseConnectionFactory connectionFactory) : IUser
         return users.ToList();
     }
 
-    public async Task<IEnumerable<User>> GetExpiredUsersAsync(long serverId, DateTime currentTime)
+    public async Task<IEnumerable<User>> GetExpiredUsersAsync(long serverId, long currentTime)
     {
         using var db = connectionFactory.CreateConnection();
-        var currentTimeUnix = ((DateTimeOffset)currentTime).ToUnixTimeSeconds();
-        var users = await db.SelectAsync<User>(u => u.sid == serverId && u.expires < currentTimeUnix && u.expires > 0);
+        var users = await db.SelectAsync<User>(u => u.sid == serverId && u.expires < currentTime && u.expires > 0);
         return users.ToList();
     }
 

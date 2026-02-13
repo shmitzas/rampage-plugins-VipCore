@@ -56,7 +56,7 @@ public class VipCoreApiV1 : IVipCoreApiV1
     {
         if (Config.VipLogging)
             _core.Logger.LogDebug("[VIPCore] Api: Registering feature '{Key}'", featureKey);
-        
+
         if (_serviceProvider == null)
         {
             _core.Logger.LogWarning("[VIPCore] Api: Cannot register feature '{Key}' - ServiceProvider is null!", featureKey);
@@ -157,14 +157,14 @@ public class VipCoreApiV1 : IVipCoreApiV1
         if (_serviceProvider == null) return;
         if (!player.IsValid) return;
 
-        var accountId = player.SteamID;
+        var steamId = (long)player.SteamID;
         var name = player.Controller?.PlayerName ?? "unknown";
 
         Task.Run(async () =>
         {
             try
             {
-                await VipService.AddVip(accountId, name, group, time);
+                await VipService.AddVip(steamId, name, group, time);
 
                 // Validate player is still valid before loading
                 if (!player.IsValid) return;
@@ -187,7 +187,7 @@ public class VipCoreApiV1 : IVipCoreApiV1
             }
             catch (Exception ex)
             {
-                _core.Logger.LogWarning(ex, "[VIPCore] Failed to give temporary VIP to player {SteamId}", accountId);
+                _core.Logger.LogWarning(ex, "[VIPCore] Failed to give temporary VIP to player {SteamId}", steamId);
             }
         });
     }
@@ -197,12 +197,12 @@ public class VipCoreApiV1 : IVipCoreApiV1
         if (_serviceProvider == null) return;
         if (!IsClientVip(player)) return;
 
-        var accountId = player.SteamID;
+        var steamId = (long)player.SteamID;
         var group = GetClientVipGroup(player);
 
         Task.Run(async () =>
         {
-            await VipService.RemoveVip(accountId);
+            await VipService.RemoveVip(steamId);
 
             _core.Scheduler.NextTick(() =>
             {

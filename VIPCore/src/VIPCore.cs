@@ -67,7 +67,7 @@ public partial class VIPCore : BasePlugin
         _vipCoreApi.RaiseOnPlayerSpawn(player);
 
         var vipService = _serviceProvider!.GetRequiredService<VipService>();
-        var accountId = player.SteamID;
+        var steamId = player.SteamID;
 
         Task.Run(async () =>
         {
@@ -75,7 +75,7 @@ public partial class VIPCore : BasePlugin
             {
                 await vipService.LoadPlayer(player);
 
-                var vipUser = vipService.GetVipUser(accountId);
+                var vipUser = vipService.GetVipUser(steamId);
                 Core.Scheduler.NextTick(() =>
                 {
                     if (!player.IsValid) return;
@@ -94,7 +94,7 @@ public partial class VIPCore : BasePlugin
             }
             catch (Exception ex)
             {
-                Core.Logger.LogError(ex, "[VIPCore] Failed to load player {SteamId} on connect.", accountId);
+                Core.Logger.LogError(ex, "[VIPCore] Failed to load player {SteamId} on connect.", steamId);
             }
         });
     }
@@ -138,13 +138,13 @@ public partial class VIPCore : BasePlugin
         _vipCoreApi = new VipCoreApiV1(core);
     }
 
-    private IPlayer? FindOnlinePlayerBySteamId(long accountId)
+    private IPlayer? FindOnlinePlayerBySteamId(ulong steamId)
     {
         for (var i = 0; i < Core.PlayerManager.PlayerCap; i++)
         {
             var p = Core.PlayerManager.GetPlayer(i);
             if (p == null || p.IsFakeClient) continue;
-            if ((long)p.SteamID == accountId) return p;
+            if (p.SteamID == steamId) return p;
         }
 
         return null;
@@ -439,7 +439,7 @@ public partial class VIPCore : BasePlugin
             return;
         }
 
-        if (!long.TryParse(context.Args[0], out var accountId)) return;
+        if (!long.TryParse(context.Args[0], out var steamId)) return;
         var group = context.Args[1];
         if (!int.TryParse(context.Args[2], out var time)) return;
 
@@ -449,11 +449,11 @@ public partial class VIPCore : BasePlugin
         {
             try
             {
-                await vipService.AddVip(accountId, "unknown", group, time);
+                await vipService.AddVip(steamId, "unknown", group, time);
 
                 Core.Scheduler.NextTick(() =>
                 {
-                    var target = FindOnlinePlayerBySteamId(accountId);
+                    var target = FindOnlinePlayerBySteamId((ulong)steamId);
                     if (target != null)
                     {
                         Task.Run(async () =>
@@ -464,7 +464,7 @@ public partial class VIPCore : BasePlugin
                             }
                             catch (Exception loadEx)
                             {
-                                Core.Logger.LogError(loadEx, "[VIPCore] Failed to load newly added VIP player {SteamId}", accountId);
+                                Core.Logger.LogError(loadEx, "[VIPCore] Failed to load newly added VIP player {SteamId}", steamId);
                             }
                         });
                     }
@@ -472,12 +472,12 @@ public partial class VIPCore : BasePlugin
 
                 Core.Scheduler.NextTick(() =>
                 {
-                    context.Reply($"Added VIP: {accountId} to group {group}");
+                    context.Reply($"Added VIP: {steamId} to group {group}");
                 });
             }
             catch (Exception ex)
             {
-                Core.Logger.LogError(ex, "[VIPCore] Failed to add VIP user {SteamId}", accountId);
+                Core.Logger.LogError(ex, "[VIPCore] Failed to add VIP user {SteamId}", steamId);
                 Core.Scheduler.NextTick(() =>
                 {
                     context.Reply($"Failed to add VIP: {ex.Message}");
@@ -530,7 +530,7 @@ public partial class VIPCore : BasePlugin
             return;
         }
 
-        if (!long.TryParse(context.Args[0], out var accountId)) return;
+        if (!long.TryParse(context.Args[0], out var steamId)) return;
 
         var vipService = _serviceProvider.GetRequiredService<VipService>();
 
@@ -538,15 +538,15 @@ public partial class VIPCore : BasePlugin
         {
             try
             {
-                await vipService.RemoveVip(accountId);
+                await vipService.RemoveVip(steamId);
                 Core.Scheduler.NextTick(() =>
                 {
-                    context.Reply($"Removed VIP: {accountId}");
+                    context.Reply($"Removed VIP: {steamId}");
                 });
             }
             catch (Exception ex)
             {
-                Core.Logger.LogError(ex, "[VIPCore] Failed to remove VIP user {SteamId}", accountId);
+                Core.Logger.LogError(ex, "[VIPCore] Failed to remove VIP user {SteamId}", steamId);
                 Core.Scheduler.NextTick(() =>
                 {
                     context.Reply($"Failed to remove VIP: {ex.Message}");
