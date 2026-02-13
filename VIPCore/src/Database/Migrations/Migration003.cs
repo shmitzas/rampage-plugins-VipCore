@@ -9,7 +9,6 @@ public class Migration003 : Migration
     {
         if (!Schema.Table("vip_users").Exists())
         {
-            // Fresh installation - create table with new schema
             Create.Table("vip_users")
                 .WithColumn("steam_id").AsInt64().NotNullable()
                 .WithColumn("name").AsString(64).NotNullable()
@@ -22,14 +21,10 @@ public class Migration003 : Migration
         }
         else
         {
-            // Migration from old structure to new structure
-            // Step 1: Check if this is the old schema by checking for account_id column
             if (Schema.Table("vip_users").Column("account_id").Exists())
             {
-                // Step 2: Rename existing table to backup
                 Rename.Table("vip_users").To("vip_users_backup");
 
-                // Step 3: Create new table with updated schema
                 Create.Table("vip_users")
                     .WithColumn("steam_id").AsInt64().NotNullable()
                     .WithColumn("name").AsString(64).NotNullable()
@@ -40,10 +35,6 @@ public class Migration003 : Migration
 
                 Create.PrimaryKey("PK_vip_users").OnTable("vip_users").Columns("steam_id", "sid", "group");
 
-                // Step 4: Migrate data from backup to new table with conversions
-                // account_id is already SteamId64, so direct mapping to steam_id
-                // Convert lastvisit (Unix timestamp) to last_visit (DateTime)
-                // Convert expires (Unix timestamp, 0 = permanent) to expires (DateTime, MinValue = permanent)
                 Execute.Sql(@"
                     INSERT INTO vip_users (steam_id, name, last_visit, sid, `group`, expires)
                     SELECT 
@@ -66,10 +57,8 @@ public class Migration003 : Migration
     {
         if (Schema.Table("vip_users").Exists())
         {
-            // Step 1: Rename current table to backup
             Rename.Table("vip_users").To("vip_users_backup");
 
-            // Step 2: Create old schema table
             Create.Table("vip_users")
                 .WithColumn("account_id").AsInt64().NotNullable()
                 .WithColumn("name").AsString(64).NotNullable()
@@ -80,10 +69,6 @@ public class Migration003 : Migration
 
             Create.PrimaryKey("PK_vip_users").OnTable("vip_users").Columns("account_id", "sid", "group");
 
-            // Step 3: Migrate data back from new schema to old schema
-            // steam_id is already SteamId64, so direct mapping back to account_id
-            // Convert last_visit (DateTime) back to lastvisit (Unix timestamp)
-            // Convert expires (DateTime, MinValue = permanent) back to expires (Unix timestamp, 0 = permanent)
             Execute.Sql(@"
                 INSERT INTO vip_users (account_id, name, lastvisit, sid, `group`, expires)
                 SELECT 
