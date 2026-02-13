@@ -243,13 +243,13 @@ public class ManageMenuService(
         }
         else
         {
-            var grouped = users.GroupBy(u => u.steam_id).ToList();
+            var grouped = users.GroupBy(u => u.account_id).ToList();
             foreach (var playerGroup in grouped)
             {
                 var playerUsers = playerGroup.ToList();
                 var first = playerUsers.First();
                 var groupNames = string.Join(", ", playerUsers.Select(u => u.group));
-                var option = new ButtonMenuOption(localizer["manage.UserEntry", first.name, first.steam_id, groupNames]);
+                var option = new ButtonMenuOption(localizer["manage.UserEntry", first.name, first.account_id, groupNames]);
                 option.Click += async (sender, args) =>
                 {
                     core.Scheduler.NextTick(() => OpenUserManageMenu(args.Player, playerUsers));
@@ -271,12 +271,14 @@ public class ManageMenuService(
 
         builder.Design.SetMenuTitle(localizer["manage.UserDetail", first.name]);
 
-        builder.AddOption(new TextMenuOption(localizer["manage.SteamId", first.steam_id]));
+        builder.AddOption(new TextMenuOption(localizer["manage.SteamId", first.account_id]));
 
         foreach (var u in playerUsers)
         {
             var userEntry = u;
-            var expiresText = userEntry.expires == DateTime.MinValue ? localizer["manage.Permanent"] : userEntry.expires.ToString("yyyy-MM-dd HH:mm");
+            var expiresText = userEntry.expires == 0 
+                ? localizer["manage.Permanent"] 
+                : DateTimeOffset.FromUnixTimeSeconds(userEntry.expires).UtcDateTime.ToString("yyyy-MM-dd HH:mm");
             var groupOption = new ButtonMenuOption(localizer["manage.Group", userEntry.group]);
             groupOption.Comment = localizer["manage.Expires", expiresText];
             groupOption.Click += async (sender, args) =>
@@ -290,7 +292,7 @@ public class ManageMenuService(
         var addGroupOption = new ButtonMenuOption(localizer["manage.AddGroup"]);
         addGroupOption.Click += async (sender, args) =>
         {
-            core.Scheduler.NextTick(() => OpenAddGroupMenu(args.Player, (ulong)first.steam_id, first.name, playerUsers));
+            core.Scheduler.NextTick(() => OpenAddGroupMenu(args.Player, (ulong)first.account_id, first.name, playerUsers));
             await ValueTask.CompletedTask;
         };
         builder.AddOption(addGroupOption);
@@ -304,16 +306,16 @@ public class ManageMenuService(
                 {
                     try
                     {
-                        await vipService.RemoveVip(first.steam_id);
+                        await vipService.RemoveVip((long)first.account_id);
                         core.Scheduler.NextTick(() =>
                         {
                             var loc = core.Translation.GetPlayerLocalizer(args.Player);
-                            args.Player.SendMessage(MessageType.Chat, loc["manage.chat.RemovedVip", first.name, first.steam_id]);
+                            args.Player.SendMessage(MessageType.Chat, loc["manage.chat.RemovedVip", first.name, first.account_id]);
                         });
                     }
                     catch (Exception ex)
                     {
-                        core.Logger.LogError(ex, "[VIPCore] Failed to remove VIP user {SteamId}", first.steam_id);
+                        core.Logger.LogError(ex, "[VIPCore] Failed to remove VIP user {SteamId}", first.account_id);
                         var loc = core.Translation.GetPlayerLocalizer(args.Player);
                         core.Scheduler.NextTick(() => args.Player.SendMessage(MessageType.Chat, loc["manage.chat.FailedRemoveVip", ex.Message]));
                     }
@@ -333,7 +335,9 @@ public class ManageMenuService(
         var localizer = core.Translation.GetPlayerLocalizer(admin);
         var builder = core.MenusAPI.CreateBuilder();
 
-        var expiresText = user.expires == DateTime.MinValue ? localizer["manage.Permanent"] : user.expires.ToString("yyyy-MM-dd HH:mm");
+        var expiresText = user.expires == 0 
+            ? localizer["manage.Permanent"] 
+            : DateTimeOffset.FromUnixTimeSeconds(user.expires).UtcDateTime.ToString("yyyy-MM-dd HH:mm");
         builder.Design.SetMenuTitle(localizer["manage.UserDetail", $"{user.name} - {user.group}"]);
 
         builder.AddOption(new TextMenuOption(localizer["manage.Group", user.group]));
@@ -356,9 +360,9 @@ public class ManageMenuService(
                 {
                     try
                     {
-                        await vipService.RemoveVipGroup(user.steam_id, user.group);
+                        await vipService.RemoveVipGroup((long)user.account_id, user.group);
 
-                        var target = core.PlayerManager.GetPlayerFromSteamId((ulong)user.steam_id);
+                        var target = core.PlayerManager.GetPlayerFromSteamId((ulong)user.account_id);
                         if (target != null)
                         {
                             await vipService.LoadPlayer(target);
@@ -367,12 +371,12 @@ public class ManageMenuService(
                         core.Scheduler.NextTick(() =>
                         {
                             var loc = core.Translation.GetPlayerLocalizer(args.Player);
-                            args.Player.SendMessage(MessageType.Chat, loc["manage.chat.RemovedVip", user.name, user.steam_id]);
+                            args.Player.SendMessage(MessageType.Chat, loc["manage.chat.RemovedVip", user.name, user.account_id]);
                         });
                     }
                     catch (Exception ex)
                     {
-                        core.Logger.LogError(ex, "[VIPCore] Failed to remove VIP group {Group} for {SteamId}", user.group, user.steam_id);
+                        core.Logger.LogError(ex, "[VIPCore] Failed to remove VIP group {Group} for {SteamId}", user.group, user.account_id);
                         var loc = core.Translation.GetPlayerLocalizer(args.Player);
                         core.Scheduler.NextTick(() => args.Player.SendMessage(MessageType.Chat, loc["manage.chat.FailedRemoveVip", ex.Message]));
                     }
@@ -437,9 +441,10 @@ public class ManageMenuService(
                     {
                         try
                         {
-                            var baseTime = user.expires == DateTime.MinValue
-                                ? DateTime.UtcNow
-                                : (user.expires > DateTime.UtcNow ? user.expires : DateTime.UtcNow);
+                            var nowUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                            var baseTime = user.expires == 0
+                                ? DateTimeOffset.UtcNow
+                                : (user.expires > nowUnix ? DateTimeOffset.FromUnixTimeSeconds(user.expires) : DateTimeOffset.UtcNow);
 
                             var newExpires = coreConfig.TimeMode switch
                             {
@@ -449,16 +454,16 @@ public class ManageMenuService(
                                 _ => baseTime.AddSeconds(t)
                             };
 
-                            user.expires = newExpires;
+                            user.expires = newExpires.ToUnixTimeSeconds();
                             await userRepository.UpdateUserAsync(user);
 
-                            var target = core.PlayerManager.GetPlayerFromSteamId((ulong)user.steam_id);
+                            var target = core.PlayerManager.GetPlayerFromSteamId((ulong)user.account_id);
                             if (target != null)
                             {
                                 await vipService.LoadPlayer(target);
                             }
 
-                            var newExpiresText = newExpires.ToString("yyyy-MM-dd HH:mm");
+                            var newExpiresText = DateTimeOffset.FromUnixTimeSeconds(user.expires).UtcDateTime.ToString("yyyy-MM-dd HH:mm");
                             core.Scheduler.NextTick(() =>
                             {
                                 var loc = core.Translation.GetPlayerLocalizer(args.Player);
@@ -468,7 +473,7 @@ public class ManageMenuService(
                         }
                         catch (Exception ex)
                         {
-                            core.Logger.LogError(ex, "[VIPCore] Failed to extend duration for {SteamId}", user.steam_id);
+                            core.Logger.LogError(ex, "[VIPCore] Failed to extend duration for {SteamId}", user.account_id);
                             var loc = core.Translation.GetPlayerLocalizer(args.Player);
                             core.Scheduler.NextTick(() => args.Player.SendMessage(MessageType.Chat, loc["manage.chat.FailedExtend", ex.Message]));
                         }
@@ -481,7 +486,7 @@ public class ManageMenuService(
         }
 
         var makePermanentOption = new ButtonMenuOption(localizer["manage.MakePermanent"]);
-        makePermanentOption.Enabled = user.expires != DateTime.MinValue;
+        makePermanentOption.Enabled = user.expires != 0;
         makePermanentOption.Click += async (sender, args) =>
         {
             core.Scheduler.NextTick(() =>
@@ -490,10 +495,10 @@ public class ManageMenuService(
                 {
                     try
                     {
-                        user.expires = DateTime.MinValue;
+                        user.expires = 0;
                         await userRepository.UpdateUserAsync(user);
 
-                        var target = core.PlayerManager.GetPlayerFromSteamId((ulong)user.steam_id);
+                        var target = core.PlayerManager.GetPlayerFromSteamId((ulong)user.account_id);
                         if (target != null)
                         {
                             await vipService.LoadPlayer(target);
@@ -507,7 +512,7 @@ public class ManageMenuService(
                     }
                     catch (Exception ex)
                     {
-                        core.Logger.LogError(ex, "[VIPCore] Failed to make permanent for {SteamId}", user.steam_id);
+                        core.Logger.LogError(ex, "[VIPCore] Failed to make permanent for {SteamId}", user.account_id);
                         var loc = core.Translation.GetPlayerLocalizer(args.Player);
                         core.Scheduler.NextTick(() => args.Player.SendMessage(MessageType.Chat, loc["manage.chat.FailedMakePermanent", ex.Message]));
                     }

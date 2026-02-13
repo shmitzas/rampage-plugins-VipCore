@@ -37,21 +37,22 @@ public class UserRepository(DatabaseConnectionFactory connectionFactory) : IUser
     public async Task<User?> GetUserAsync(long steamId, long serverId)
     {
         using var db = connectionFactory.CreateConnection();
-        var users = await db.SelectAsync<User>(u => u.steam_id == steamId && u.sid == serverId);
+        var users = await db.SelectAsync<User>(u => u.account_id == steamId && u.sid == serverId);
         return users.FirstOrDefault();
     }
 
     public async Task<IEnumerable<User>> GetUserGroupsAsync(long steamId, long serverId)
     {
         using var db = connectionFactory.CreateConnection();
-        var users = await db.SelectAsync<User>(u => u.steam_id == steamId && u.sid == serverId);
+        var users = await db.SelectAsync<User>(u => u.account_id == steamId && u.sid == serverId);
         return users.ToList();
     }
 
     public async Task<IEnumerable<User>> GetExpiredUsersAsync(long serverId, DateTime currentTime)
     {
         using var db = connectionFactory.CreateConnection();
-        var users = await db.SelectAsync<User>(u => u.sid == serverId && u.expires < currentTime && u.expires > DateTime.MinValue);
+        var currentTimeUnix = ((DateTimeOffset)currentTime).ToUnixTimeSeconds();
+        var users = await db.SelectAsync<User>(u => u.sid == serverId && u.expires < currentTimeUnix && u.expires > 0);
         return users.ToList();
     }
 
@@ -77,7 +78,7 @@ public class UserRepository(DatabaseConnectionFactory connectionFactory) : IUser
     public async Task DeleteUserAsync(long steamId, long serverId)
     {
         using var db = connectionFactory.CreateConnection();
-        var groups = await db.SelectAsync<User>(u => u.steam_id == steamId && u.sid == serverId);
+        var groups = await db.SelectAsync<User>(u => u.account_id == steamId && u.sid == serverId);
         foreach (var user in groups)
             await db.DeleteAsync(user);
     }
@@ -85,7 +86,7 @@ public class UserRepository(DatabaseConnectionFactory connectionFactory) : IUser
     public async Task DeleteUserGroupAsync(long steamId, long serverId, string group)
     {
         using var db = connectionFactory.CreateConnection();
-        var user = new User { steam_id = steamId, sid = serverId, group = group, name = string.Empty };
+        var user = new User { account_id = steamId, sid = serverId, group = group, name = string.Empty };
         await db.DeleteAsync(user);
     }
 
