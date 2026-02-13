@@ -75,7 +75,7 @@ public partial class VIPCore : BasePlugin
             {
                 await vipService.LoadPlayer(player);
 
-                var vipUser = vipService.GetVipUser(steamId);
+                var vipUser = vipService.GetVipUser((long)steamId);
                 Core.Scheduler.NextTick(() =>
                 {
                     if (!player.IsValid) return;
@@ -106,7 +106,7 @@ public partial class VIPCore : BasePlugin
 
         var vipService = _serviceProvider!.GetRequiredService<VipService>();
 
-        var vipUser = vipService.GetVipUser(player.SteamID);
+        var vipUser = vipService.GetVipUser((long)player.SteamID);
         vipService.UnloadPlayer(player);
 
         if (vipUser != null)
@@ -138,13 +138,13 @@ public partial class VIPCore : BasePlugin
         _vipCoreApi = new VipCoreApiV1(core);
     }
 
-    private IPlayer? FindOnlinePlayerBySteamId(ulong steamId)
+    private IPlayer? FindOnlinePlayerBySteamId(long steamId)
     {
         for (var i = 0; i < Core.PlayerManager.PlayerCap; i++)
         {
             var p = Core.PlayerManager.GetPlayer(i);
             if (p == null || p.IsFakeClient) continue;
-            if (p.SteamID == steamId) return p;
+            if ((long)p.SteamID == steamId) return p;
         }
 
         return null;
@@ -395,7 +395,7 @@ public partial class VIPCore : BasePlugin
             try
             {
                 await vipService.LoadPlayer(player);
-                var vipUser = vipService.GetVipUser(player.SteamID);
+                var vipUser = vipService.GetVipUser((long)player.SteamID);
 
                 Core.Scheduler.NextTick(() =>
                 {
@@ -439,7 +439,7 @@ public partial class VIPCore : BasePlugin
             return;
         }
 
-        if (!ulong.TryParse(context.Args[0], out var steamId)) return;
+        if (!long.TryParse(context.Args[0], out var steamId)) return;
         var group = context.Args[1];
         if (!int.TryParse(context.Args[2], out var time)) return;
 
@@ -530,7 +530,7 @@ public partial class VIPCore : BasePlugin
             return;
         }
 
-        if (!ulong.TryParse(context.Args[0], out var steamId)) return;
+        if (!long.TryParse(context.Args[0], out var steamId)) return;
 
         var vipService = _serviceProvider.GetRequiredService<VipService>();
 

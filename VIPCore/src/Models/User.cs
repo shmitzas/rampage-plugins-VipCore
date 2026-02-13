@@ -8,7 +8,7 @@ public class User
 {
     [System.ComponentModel.DataAnnotations.Key]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public ulong steam_id { get; set; }
+    public long steam_id { get; set; }
     public required string name { get; set; }
     public DateTime last_visit { get; set; }
     [System.ComponentModel.DataAnnotations.Key]

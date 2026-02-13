@@ -22,15 +22,15 @@ public class VipService(
     ServerIdentifier serverIdentifier)
 {
     private VipConfig coreConfig => coreConfigMonitor.CurrentValue;
-    private readonly ConcurrentDictionary<ulong, VipUser> _users = new();
+    private readonly ConcurrentDictionary<long, VipUser> _users = new();
 
     public bool IsClientVip(IPlayer player)
     {
         if (player.IsFakeClient) return false;
-        return _users.TryGetValue(player.SteamID, out var user) && (user.expires == DateTime.MinValue || user.expires > DateTime.UtcNow);
+        return _users.TryGetValue((long)player.SteamID, out var user) && (user.expires == DateTime.MinValue || user.expires > DateTime.UtcNow);
     }
 
-    public VipUser? GetVipUser(ulong steamId)
+    public VipUser? GetVipUser(long steamId)
     {
         _users.TryGetValue(steamId, out var user);
         return user;
@@ -40,7 +40,7 @@ public class VipService(
     {
         if (player.IsFakeClient) return;
 
-        var allGroups = (await userRepository.GetUserGroupsAsync(player.SteamID, serverIdentifier.ServerId)).ToList();
+        var allGroups = (await userRepository.GetUserGroupsAsync((long)player.SteamID, serverIdentifier.ServerId)).ToList();
 
         if (allGroups.Count == 0) return;
 
@@ -71,7 +71,7 @@ public class VipService(
         };
 
         InitializeFeaturesForUser(vipUser);
-        _users[player.SteamID] = vipUser;
+        _users[(long)player.SteamID] = vipUser;
 
         foreach (var g in validGroups)
         {
@@ -108,14 +108,14 @@ public class VipService(
 
     public void UnloadPlayer(IPlayer player)
     {
-        if (_users.TryRemove(player.SteamID, out var user))
+        if (_users.TryRemove((long)player.SteamID, out var user))
         {
             foreach (var state in user.FeatureStates)
             {
                 var feature = featureService.GetFeature(state.Key);
                 if (feature?.FeatureType == FeatureType.Toggle)
                 {
-                    cookieService.SetCookie(player.SteamID, state.Key, (int)state.Value);
+                    cookieService.SetCookie((long)player.SteamID, state.Key, (int)state.Value);
                 }
             }
         }
@@ -143,7 +143,7 @@ public class VipService(
         }
     }
 
-    public async Task AddVip(ulong steamId, string name, string group, int time)
+    public async Task AddVip(long steamId, string name, string group, int time)
     {
         var expires = CalculateExpires(time);
         var user = new User
@@ -159,13 +159,13 @@ public class VipService(
         await userRepository.AddUserAsync(user);
     }
 
-    public async Task RemoveVip(ulong steamId)
+    public async Task RemoveVip(long steamId)
     {
         await userRepository.DeleteUserAsync(steamId, serverIdentifier.ServerId);
         _users.TryRemove(steamId, out _);
     }
 
-    public async Task RemoveVipGroup(ulong steamId, string group)
+    public async Task RemoveVipGroup(long steamId, string group)
     {
         await userRepository.DeleteUserGroupAsync(steamId, serverIdentifier.ServerId, group);
     }

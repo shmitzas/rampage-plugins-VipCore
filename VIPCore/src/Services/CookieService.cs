@@ -40,15 +40,15 @@ public class CookieService(ISwiftlyCore core)
         }
     }
 
-    public void SetCookie<T>(ulong steamId, string key, T value)
+    public void SetCookie<T>(long steamId, string key, T value)
     {
         if (steamId <= 0) return;
         if (_playerCookiesApi == null) return;
 
         try
         {
-            _playerCookiesApi.Set((long)steamId, key, value!);
-            _playerCookiesApi.Save((long)steamId);
+            _playerCookiesApi.Set(steamId, key, value!);
+            _playerCookiesApi.Save(steamId);
         }
         catch (Exception ex)
         {
@@ -56,14 +56,14 @@ public class CookieService(ISwiftlyCore core)
         }
     }
 
-    public T GetCookie<T>(ulong steamId, string key)
+    public T GetCookie<T>(long steamId, string key)
     {
         if (_playerCookiesApi == null) return default!;
 
         T? value = default;
         try
         {
-            value = _playerCookiesApi.Get<T>((long)steamId, key);
+            value = _playerCookiesApi.Get<T>(steamId, key);
         }
         catch (Exception ex)
         {
