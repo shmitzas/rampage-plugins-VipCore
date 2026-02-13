@@ -98,7 +98,7 @@ public class ManageMenuService(
             var option = new ButtonMenuOption($"{playerName} ({steamId})");
             option.Click += async (sender, args) =>
             {
-                core.Scheduler.NextTick(() => OpenAddVipSelectGroupMenu(args.Player, steamId, playerName));
+                core.Scheduler.NextTick(() => OpenAddVipSelectGroupMenu(args.Player, (long)steamId, playerName));
                 await ValueTask.CompletedTask;
             };
             builder.AddOption(option);
@@ -162,7 +162,7 @@ public class ManageMenuService(
                                 var displayLabel = loc[timeKey];
                                 args.Player.SendMessage(MessageType.Chat, loc["manage.chat.AddedVip", playerName, steamId, group, displayLabel]);
 
-                                var target = core.PlayerManager.GetPlayerFromSteamId(steamId);
+                                var target = core.PlayerManager.GetPlayerFromSteamId((ulong)steamId);
                                 if (target != null)
                                 {
                                     Task.Run(async () =>
@@ -203,7 +203,7 @@ public class ManageMenuService(
                             var loc = core.Translation.GetPlayerLocalizer(args.Player);
                             args.Player.SendMessage(MessageType.Chat, loc["manage.chat.AddedVipPermanent", playerName, steamId, group]);
 
-                            var target = core.PlayerManager.GetPlayerFromSteamId(steamId);
+                            var target = core.PlayerManager.GetPlayerFromSteamId((ulong)steamId);
                             if (target != null)
                             {
                                 Task.Run(async () =>
@@ -304,7 +304,7 @@ public class ManageMenuService(
                 {
                     try
                     {
-                        await vipService.RemoveVip((long)first.account_id);
+                        await vipService.RemoveVip(first.account_id);
                         core.Scheduler.NextTick(() =>
                         {
                             var loc = core.Translation.GetPlayerLocalizer(args.Player);
@@ -358,9 +358,9 @@ public class ManageMenuService(
                 {
                     try
                     {
-                        await vipService.RemoveVipGroup((long)user.account_id, user.group);
+                        await vipService.RemoveVipGroup(user.account_id, user.group);
 
-                        var target = core.PlayerManager.GetPlayerFromSteamId(user.account_id);
+                        var target = core.PlayerManager.GetPlayerFromSteamId((ulong)user.account_id);
                         if (target != null)
                         {
                             await vipService.LoadPlayer(target);
@@ -389,7 +389,7 @@ public class ManageMenuService(
         core.MenusAPI.OpenMenuForPlayer(admin, menu);
     }
 
-    private void OpenAddGroupMenu(IPlayer admin, ulong steamId, string playerName, List<User> existingGroups)
+    private void OpenAddGroupMenu(IPlayer admin, long steamId, string playerName, List<User> existingGroups)
     {
         var localizer = core.Translation.GetPlayerLocalizer(admin);
         var builder = core.MenusAPI.CreateBuilder();
@@ -455,13 +455,13 @@ public class ManageMenuService(
                             user.expires = newExpires.ToUnixTimeSeconds();
                             await userRepository.UpdateUserAsync(user);
 
-                            var target = core.PlayerManager.GetPlayerFromSteamId(user.account_id);
+                            var target = core.PlayerManager.GetPlayerFromSteamId((ulong)user.account_id);
                             if (target != null)
                             {
                                 await vipService.LoadPlayer(target);
                             }
 
-                            var newExpiresText = DateTimeOffset.FromUnixTimeSeconds(user.expires).UtcDateTime.ToString("yyyy-MM-dd HH:mm");
+                           var newExpiresText = DateTimeOffset.FromUnixTimeSeconds(newExpires).ToString("yyyy-MM-dd HH:mm");
                             core.Scheduler.NextTick(() =>
                             {
                                 var loc = core.Translation.GetPlayerLocalizer(args.Player);
@@ -496,7 +496,7 @@ public class ManageMenuService(
                         user.expires = 0;
                         await userRepository.UpdateUserAsync(user);
 
-                        var target = core.PlayerManager.GetPlayerFromSteamId(user.account_id);
+                        var target = core.PlayerManager.GetPlayerFromSteamId((ulong)user.account_id);
                         if (target != null)
                         {
                             await vipService.LoadPlayer(target);
