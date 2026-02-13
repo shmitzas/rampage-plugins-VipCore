@@ -437,3 +437,9 @@ Thumbs.db
 *.zip
 *.gzip
 *.7z
+
+# Auto generated examples files for modules
+*examples
+
+# Deployment scripts
+*deploy.ps1
