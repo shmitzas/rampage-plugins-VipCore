@@ -160,6 +160,9 @@ Defines VIP groups and what features each group receives.
 | Simple toggle | `"vip.zeus": 1` | Feature has no extra settings (just on/off) |
 | With settings | `"vip.armor": { "Armor": 100 }` | Feature needs customization (amounts, timers, etc.) |
 
+> [!TIP]
+> **Module-specific configuration:** Each module has its own configuration options and setup instructions. See the [Modules](Modules/) directory for detailed documentation on each module's settings.
+
 ## Included Modules
 
 This repository ships several optional VIP modules (each one is a standalone SwiftlyS2 plugin that registers features into VIPCore):
