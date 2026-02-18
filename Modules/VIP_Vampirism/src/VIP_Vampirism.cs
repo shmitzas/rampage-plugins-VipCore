@@ -9,7 +9,7 @@ using SwiftlyS2.Shared.GameEvents;
 
 namespace VIP_Vampirism;
 
-[PluginMetadata(Id = "VIP_Vampirism", Version = "1.0.0", Name = "VIP_Vampirism", Author = "aga", Description = "No description.")]
+[PluginMetadata(Id = "VIP_Vampirism", Version = "1.0.0", Name = "VIP_Vampirism", Author = "aga, shmitz", Description = "Retruns HP to attacker based on configured logic")]
 public partial class VIP_Vampirism : BasePlugin
 {
     private const string FeatureKey = "vip.vampirism";
@@ -121,7 +121,7 @@ public partial class VIP_Vampirism : BasePlugin
         if (pawn == null || !pawn.IsValid) return HookResult.Continue;
 
         var newHealth = pawn.Health + heal;
-        if (newHealth <= 0)
+        if (newHealth > 0)
             SetNewHealthForPawn(pawn, newHealth);
 
         return HookResult.Continue;
