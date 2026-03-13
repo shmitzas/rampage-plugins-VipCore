@@ -1,3 +1,4 @@
+using Dapper;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SwiftlyS2.Shared;
@@ -7,6 +8,7 @@ using SwiftlyS2.Shared.Plugins;
 using SwiftlyS2.Shared.Translation;
 using System.Text.Json.Serialization;
 using VIPCore.Contract;
+using Cookies.Contract;
 
 namespace VIP_Test;
 
@@ -18,6 +20,7 @@ public class VIP_Test : BasePlugin
     private const string CookieActiveEnd = "vip_test_active_end";
 
     private IVipCoreApiV1? _vipApi;
+    private IPlayerCookiesAPIv1? _cookiesApi;
     private VipTestConfig? _config;
 
     public VIP_Test(ISwiftlyCore core) : base(core)
@@ -31,6 +34,7 @@ public class VIP_Test : BasePlugin
     public override void UseSharedInterface(IInterfaceManager interfaceManager)
     {
         _vipApi = null;
+        _cookiesApi = null;
 
         try
         {
@@ -41,6 +45,16 @@ public class VIP_Test : BasePlugin
         {
             Core.Logger.LogWarning(ex, "[VIP_Test] Failed to resolve VIPCore.Api.v1.");
         }
+
+        try
+        {
+            if (interfaceManager.HasSharedInterface("Cookies.Player.v1"))
+                _cookiesApi = interfaceManager.GetSharedInterface<IPlayerCookiesAPIv1>("Cookies.Player.v1");
+        }
+        catch (Exception ex)
+        {
+            Core.Logger.LogWarning(ex, "[VIP_Test] Failed to resolve Cookies.Player.v1.");
+        }
     }
 
     public override void Load(bool hotReload)
@@ -48,6 +62,7 @@ public class VIP_Test : BasePlugin
         _config = LoadConfig();
 
         Core.Command.RegisterCommand("viptest", OnCommandVipTest);
+        Core.Command.RegisterCommand("viptest_reset", OnCommandVipTestReset, permission: "viptest.reset");
 
         Core.Logger.LogInformation("[VIP_Test] Plugin loaded.");
     }
@@ -70,6 +85,8 @@ public class VIP_Test : BasePlugin
         var api = _vipApi;
         if (api == null) return;
 
+        var localizer = Core.Translation.GetPlayerLocalizer(player);
+
         var vipTestCount = api.GetPlayerCookie<int>(player, CookieCount);
         var cooldownEndTime = api.GetPlayerCookie<long>(player, CookieCooldown);
         var activeEndTime = api.GetPlayerCookie<long>(player, CookieActiveEnd);
@@ -81,7 +98,6 @@ public class VIP_Test : BasePlugin
             var activeTime = DateTimeOffset.FromUnixTimeSeconds(activeEndTime) - DateTimeOffset.UtcNow;
             var activeTimeFormatted = $"{(activeTime.Days == 0 ? "" : $"{activeTime.Days}d ")}{activeTime.Hours:D2}:{activeTime.Minutes:D2}:{activeTime.Seconds:D2}".Trim();
             
-            var localizer = Core.Translation.GetPlayerLocalizer(player);
             player.SendMessage(MessageType.Chat, localizer["viptest.CurrentlyActive", activeTimeFormatted]);
             return;
         }
@@ -89,14 +105,12 @@ public class VIP_Test : BasePlugin
         // Check if user already has VIP from some other source
         if (api.IsClientVip(player))
         {
-            var localizer = Core.Translation.GetPlayerLocalizer(player);
             player.SendMessage(MessageType.Chat, localizer["vip.AlreadyVipPrivileges"]);
             return;
         }
 
         if (vipTestCount >= config.VipTestCount)
         {
-            var localizer = Core.Translation.GetPlayerLocalizer(player);
             player.SendMessage(MessageType.Chat, localizer["viptest.YouCanNoLongerTakeTheVip"]);
             return;
         }
@@ -107,7 +121,6 @@ public class VIP_Test : BasePlugin
             var timeRemainingFormatted =
                 $"{(time.Days == 0 ? "" : $"{time.Days}d ")}{time.Hours:D2}:{time.Minutes:D2}:{time.Seconds:D2}".Trim();
 
-            var localizer = Core.Translation.GetPlayerLocalizer(player);
             player.SendMessage(MessageType.Chat, localizer["viptest.RetakenThrough", timeRemainingFormatted]);
             return;
         }
@@ -122,9 +135,65 @@ public class VIP_Test : BasePlugin
         var timeRemaining = DateTimeOffset.FromUnixTimeSeconds(durationEndTime) - DateTimeOffset.UtcNow;
         var formattedTime = timeRemaining.ToString(timeRemaining.Hours > 0 ? @"h\:mm\:ss" : @"m\:ss");
 
-        var loc = Core.Translation.GetPlayerLocalizer(player);
-        player.SendMessage(MessageType.Chat, loc["viptest.SuccessfullyPassed", formattedTime]);
+        context.Reply(localizer["viptest.SuccessfullyPassed", formattedTime]);
         api.GiveClientVip(player, config.VipTestGroup, config.VipTestDuration);
+    }
+
+    private void OnCommandVipTestReset(ICommandContext context)
+    {
+        var player = context.Sender;
+        
+        var cookiesApi = _cookiesApi;
+        if (cookiesApi == null)
+        {
+            if (player != null)
+                context.Reply(Core.Translation.GetPlayerLocalizer(player)["viptest.CookiesApiMissing"]);
+            else
+                context.Reply("Cookies API not available. Cannot reset VIP test counts.");
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var resetCount = 0;
+
+        try
+        {
+            var connection = Core.Database.GetConnection("cookies");
+            var steamIds = connection.Query<long>($"SELECT SteamId64 FROM PlayerCookies WHERE Data LIKE @pattern",
+                new { pattern = $"%\"{CookieCount}\"%" });
+
+            foreach (var steamId in steamIds)
+            {
+                try
+                {
+                    var activeEndTime = cookiesApi.Get<long>(steamId, CookieActiveEnd);
+
+                    // If there's an active VIP test running, set count to 1, otherwise reset to 0
+                    var newCount = activeEndTime > now ? 1 : 0;
+
+                    cookiesApi.Set(steamId, CookieCount, newCount);
+                    cookiesApi.Save(steamId);
+                    resetCount++;
+                }
+                catch
+                {
+                    // Skip rows with errors
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            if (player != null)
+                context.Reply(Core.Translation.GetPlayerLocalizer(player)["viptest.DatabaseError", ex.Message]);
+            else
+                context.Reply($"Failed to query database: {ex.Message}");
+            return;
+        }
+
+        if (player != null)
+            context.Reply(Core.Translation.GetPlayerLocalizer(player)["viptest.ResetSuccess", resetCount]);
+        else
+            context.Reply($"Reset VIP test count for {resetCount} player(s) (online + offline).");
     }
 
     private VipTestConfig LoadConfig()

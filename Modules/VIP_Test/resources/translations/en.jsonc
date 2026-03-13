@@ -3,5 +3,9 @@
   "viptest.YouCanNoLongerTakeTheVip": "You have used all your trial VIP attempts.",
   "viptest.RetakenThrough": "You can take trial VIP again in [red]{0}[default].",
   "viptest.SuccessfullyPassed": "You have received trial VIP for [green]{0}[default]!",
-  "viptest.CurrentlyActive": "Your trial VIP is currently active for another [green]{0}[default]. Type [green]!vip[default] to use its features."
+  "viptest.CurrentlyActive": "Your trial VIP is currently active for another [green]{0}[default]. Type [green]!vip[default] to use its features.",
+  "viptest.CountReset": "Your trial VIP count has been reset to [green]{0}[default].",
+  "viptest.CookiesApiMissing": "[red]Cookies API not available. Cannot reset VIP test counts.[default]",
+  "viptest.DatabaseError": "[red]Failed to query database: {0}[default]",
+  "viptest.ResetSuccess": "Reset VIP test count has been reset for [green]{0}[default] player."
 }
