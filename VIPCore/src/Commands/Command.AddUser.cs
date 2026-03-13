@@ -7,31 +7,35 @@ namespace VIPCore;
 
 public sealed partial class VIPCore
 {
-    [Command("vip_adduser", permission: "vipcore.adduser")]
+    [Command("vip_adduser", registerRaw: true, permission: "vipcore.adduser")]
     [CommandAlias("vipadd", registerRaw: true)]
     public void OnAddUserCommand(ICommandContext context)
     {
         if (_serviceProvider == null)
         {
-            Core.Scheduler.NextTick(() =>
-            {
-                context.Reply("VIPCore is not initialized.");
-            });
+            context.Reply("VIPCore is not initialized.");
             return;
         }
 
         if (context.Args.Length < 3)
         {
-            Core.Scheduler.NextTick(() =>
-            {
-                context.Reply("Usage: vip_adduser <steamid> <group> <time>");
-            });
+            context.Reply("Usage: vip_adduser <steamid> <group> <time>");
             return;
         }
 
-        if (!long.TryParse(context.Args[0], out var steamId)) return;
+        if (!long.TryParse(context.Args[0], out var steamId))
+        {
+            context.Reply($"Invalid SteamID format: {context.Args[0]}");
+            return;
+        }
+
         var group = context.Args[1];
-        if (!int.TryParse(context.Args[2], out var time)) return;
+
+        if (!int.TryParse(context.Args[2], out var time))
+        {
+            context.Reply($"Invalid time format: {context.Args[2]}");
+            return;
+        }
 
         var vipService = _serviceProvider.GetRequiredService<VipService>();
 

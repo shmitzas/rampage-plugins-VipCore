@@ -7,29 +7,27 @@ namespace VIPCore;
 
 public sealed partial class VIPCore
 {
-    [Command("vip_deleteuser", permission: "vipcore.deleteuser")]
+    [Command("vip_deleteuser", registerRaw: true, permission: "vipcore.deleteuser")]
     [CommandAlias("vipdelete", registerRaw: true)]
     public void OnDeleteUserCommand(ICommandContext context)
     {
         if (_serviceProvider == null)
         {
-            Core.Scheduler.NextTick(() =>
-            {
-                context.Reply("VIPCore is not initialized.");
-            });
+            context.Reply("VIPCore is not initialized.");
             return;
         }
 
         if (context.Args.Length < 1)
         {
-            Core.Scheduler.NextTick(() =>
-            {
-                context.Reply("Usage: vip_deleteuser <steamid>");
-            });
+            context.Reply("Usage: vip_deleteuser <steamid>");
             return;
         }
 
-        if (!long.TryParse(context.Args[0], out var steamId)) return;
+        if (!long.TryParse(context.Args[0], out var steamId))
+        {
+            context.Reply($"Invalid SteamID format: {context.Args[0]}");
+            return;
+        }
 
         var vipService = _serviceProvider.GetRequiredService<VipService>();
 
