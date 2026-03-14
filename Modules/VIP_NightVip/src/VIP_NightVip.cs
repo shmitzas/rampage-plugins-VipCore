@@ -26,7 +26,7 @@ public partial class VIP_NightVip : BasePlugin {
   private IVipCoreApiV1? _vipApi;
   private VIP_NightVipConfig _config = new();
 
-  private readonly ConcurrentDictionary<ulong, bool> _grantedByUs = new();
+  private readonly ConcurrentDictionary<ulong, bool> _grantedByUs = new(); // true = used GiveClientVip, false = used OverrideClientVipGroup
 
   private CancellationTokenSource? _checkTimerCts;
 
@@ -199,21 +199,38 @@ public partial class VIP_NightVip : BasePlugin {
 
     if (isVipTime)
     {
-      // Only override if player already has VIP and we haven't overridden them yet
-      if (_vipApi.IsClientVip(player) && !_grantedByUs.ContainsKey(player.SteamID))
+      if (!_grantedByUs.ContainsKey(player.SteamID))
       {
-        _vipApi.OverrideClientVipGroup(player, _config.VIPGroup);
-        _grantedByUs[player.SteamID] = true;
-
         var localizer = Core.Translation.GetPlayerLocalizer(player);
-        player.SendMessage(MessageType.Chat, localizer["nightvip.Granted", _config.Tag]);
+
+        if (!_vipApi.IsClientVip(player))
+        {
+          _vipApi.GiveClientVip(player, _config.VIPGroup, 0);
+          _grantedByUs[player.SteamID] = true;
+          player.SendMessage(MessageType.Chat, localizer["nightvip.Granted", _config.Tag]);
+        }
+        else
+        {
+          var nightVipWeight = _vipApi.GetVipGroupWeight(_config.VIPGroup);
+          var playerGroup = _vipApi.GetClientVipGroup(player);
+          var playerWeight = _vipApi.GetVipGroupWeight(playerGroup);
+
+          if (playerWeight > nightVipWeight)
+            return;
+
+          _vipApi.OverrideClientVipGroup(player, _config.VIPGroup);
+          _grantedByUs[player.SteamID] = false;
+          player.SendMessage(MessageType.Chat, localizer["nightvip.Granted", _config.Tag]);
+        }
       }
     }
     else
     {
-      if (_grantedByUs.TryRemove(player.SteamID, out _))
+      if (_grantedByUs.TryRemove(player.SteamID, out var wasGiven))
       {
-        if (_vipApi.IsClientVip(player))
+        if (wasGiven)
+          _vipApi.RemoveClientVip(player);
+        else if (_vipApi.IsClientVip(player))
           _vipApi.ClearClientVipGroupOverride(player);
       }
     }

@@ -283,6 +283,15 @@ public class VipCoreApiV1 : IVipCoreApiV1
         return GroupsConfig.Groups.Keys.ToArray();
     }
 
+    public int GetVipGroupWeight(string group)
+    {
+        var groupName = GroupsConfig.Groups.Keys
+            .FirstOrDefault(k => k.Equals(group, StringComparison.OrdinalIgnoreCase));
+        if (groupName == null || !GroupsConfig.Groups.TryGetValue(groupName, out var groupConfig))
+            return 0;
+        return groupConfig.Weight;
+    }
+
     public T? GetFeatureValue<T>(IPlayer player, string featureKey) where T : class, new()
     {
         if (_serviceProvider == null) return default;

@@ -49,6 +49,7 @@ public interface IVipCoreApiV1
     public string GetClientVipGroup(IPlayer player);
     public string[] GetClientVipGroups(IPlayer player);
     public string[] GetVipGroups();
+    public int GetVipGroupWeight(string group);
 
     /// <summary>
     /// Reads the feature's config value from the player's VIP group and binds it to T.
