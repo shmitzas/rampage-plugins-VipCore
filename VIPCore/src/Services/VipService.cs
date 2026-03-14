@@ -122,6 +122,26 @@ public class VipService(
         return best ?? validGroups.FirstOrDefault();
     }
 
+    public void OverrideVipGroup(IPlayer player, string group)
+    {
+        var logging = coreConfig.VipLogging;
+
+        if (!_users.TryGetValue(player.SteamID, out var user))
+        {
+            if (logging)
+                core.Logger.LogWarning("[VIPCore] OverrideVipGroup: player {SteamId} not found in _users dict, cannot override", player.SteamID);
+            return;
+        }
+
+        var oldGroup = user.group;
+        user.group = group;
+        user.FeatureStates.Clear();
+        InitializeFeaturesForUser(user);
+        
+        if (logging)
+            core.Logger.LogInformation("[VIPCore] OverrideVipGroup: {SteamId} '{OldGroup}' -> '{NewGroup}', features count={Count}", player.SteamID, oldGroup, user.group, user.FeatureStates.Count);
+    }
+
     public void UnloadPlayer(IPlayer player)
     {
         if (_users.TryRemove(player.SteamID, out var user))

@@ -32,6 +32,18 @@ public interface IVipCoreApiV1
     /// </summary>
     public void RemoveClientVip(IPlayer player);
 
+    /// <summary>
+    /// Overrides the player's active VIP group in memory only. No database write.
+    /// The player must already be VIP (have a real group loaded). If they are not VIP,
+    /// this does nothing. Feature states are re-initialized for the override group.
+    /// </summary>
+    public void OverrideClientVipGroup(IPlayer player, string group);
+
+    /// <summary>
+    /// Clears any in-memory group override and reloads the player's real group from the database.
+    /// </summary>
+    public void ClearClientVipGroupOverride(IPlayer player);
+
     public bool IsCoreReady();
 
     public string GetClientVipGroup(IPlayer player);

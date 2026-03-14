@@ -214,6 +214,51 @@ public class VipCoreApiV1 : IVipCoreApiV1
         });
     }
 
+    public void OverrideClientVipGroup(IPlayer player, string group)
+    {
+        if (_serviceProvider == null) return;
+        if (!player.IsValid) return;
+
+        var logging = Config.VipLogging;
+
+        if (!IsClientVip(player))
+        {
+            if (logging)
+                _core.Logger.LogWarning("[VIPCore] OverrideClientVipGroup: player {Name} ({SteamId}) is not VIP, skipping override to '{Group}'",
+                    player.Controller?.PlayerName, player.SteamID, group);
+            return;
+        }
+
+        var currentGroup = GetClientVipGroup(player);
+
+        VipService.OverrideVipGroup(player, group);
+        RaisePlayerLoaded(player, group);
+
+        if (logging)
+            _core.Logger.LogInformation("[VIPCore] OverrideClientVipGroup: {Name} ({SteamId}) '{CurrentGroup}' -> '{NewGroup}'",
+                player.Controller?.PlayerName, player.SteamID, currentGroup, GetClientVipGroup(player));
+    }
+
+    public void ClearClientVipGroupOverride(IPlayer player)
+    {
+        if (_serviceProvider == null) return;
+        if (!player.IsValid) return;
+
+        Task.Run(async () =>
+        {
+            await VipService.LoadPlayer(player);
+
+            _core.Scheduler.NextTick(() =>
+            {
+                if (!player.IsValid) return;
+
+                var vipUser = VipService.GetVipUser(player.SteamID);
+                if (vipUser != null)
+                    RaisePlayerLoaded(player, vipUser.group);
+            });
+        });
+    }
+
     public bool IsCoreReady() => _serviceProvider != null;
 
     public bool PlayerHasFeature(IPlayer player, string featureKey)

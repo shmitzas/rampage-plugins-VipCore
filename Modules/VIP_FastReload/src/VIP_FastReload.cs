@@ -199,6 +199,9 @@ public partial class VIP_FastReload : BasePlugin
             var activeWeapon = weaponServices.ActiveWeapon.Value;
             if (activeWeapon == null || !activeWeapon.IsValid) return;
 
+            var designerName = activeWeapon.DesignerName;
+            if (designerName == "weapon_taser") return;
+
             var csWeapon = Core.EntitySystem.GetEntityByIndex<CCSWeaponBase>(activeWeapon.Index);
             if (csWeapon == null) return;
 
@@ -225,7 +228,7 @@ public partial class VIP_FastReload : BasePlugin
 
             if (allowAnimationReset)
             {
-                var designerName = activeWeapon.DesignerName;
+                var currentDesignerName = activeWeapon.DesignerName;
                 Core.Scheduler.NextTick(() =>
                 {
                     if (pawn == null || !pawn.IsValid) return;

@@ -21,11 +21,6 @@ public class VIP_NightVipConfig
     public string Tag { get; set; } = "[NightVIP]";
 }
 
-public class VipCoreConfigSnapshot
-{
-    public int TimeMode { get; set; } = 0;
-}
-
 [PluginMetadata(Id = "VIP_NightVip", Version = "1.0.0", Name = "VIP_NightVip", Author = "aga", Description = "Gives VIP between a certain period of time.")]
 public partial class VIP_NightVip : BasePlugin {
   private IVipCoreApiV1? _vipApi;
@@ -162,11 +157,9 @@ public partial class VIP_NightVip : BasePlugin {
     var player = Core.PlayerManager.GetPlayer(@event.PlayerId);
     if (player == null || player.IsFakeClient) return;
 
-    if (_grantedByUs.TryRemove(player.SteamID, out _))
-    {
-      if (_vipApi != null && _vipApi.IsClientVip(player))
-        _vipApi.RemoveClientVip(player);
-    }
+    // Nothing to clean up in DB since override is memory-only.
+    // VIPCore will reload the real group from DB on next connect.
+    _grantedByUs.TryRemove(player.SteamID, out _);
   }
 
   private void CheckAllPlayers()
@@ -206,84 +199,23 @@ public partial class VIP_NightVip : BasePlugin {
 
     if (isVipTime)
     {
-      if (!_vipApi.IsClientVip(player))
+      // Only override if player already has VIP and we haven't overridden them yet
+      if (_vipApi.IsClientVip(player) && !_grantedByUs.ContainsKey(player.SteamID))
       {
-        if (!_grantedByUs.ContainsKey(player.SteamID))
-        {
-          // We mark it temporarily so we don't spam GiveClientVip while it's processing
-          _grantedByUs[player.SteamID] = false;
-
-          var timeUnitsToEnd = GetGrantTimeUnitsUntilEndOfWindow(currentTimeInTimeZone);
-          if (timeUnitsToEnd <= 0)
-          {
-              _grantedByUs.TryRemove(player.SteamID, out _);
-              return;
-          }
-
-          _vipApi.GiveClientVip(player, _config.VIPGroup, timeUnitsToEnd);
-          
-          Core.Scheduler.DelayBySeconds(1.5f, () => {
-              if (player == null || !player.IsValid) return;
-
-              if (_vipApi.IsClientVip(player))
-              {
-                  _grantedByUs[player.SteamID] = true;
-                  var localizer = Core.Translation.GetPlayerLocalizer(player);
-                  player.SendMessage(MessageType.Chat, localizer["nightvip.Granted", _config.Tag]);
-              }
-              else
-              {
-                  // It failed to grant VIP. Clear the flag so it retries next check.
-                  _grantedByUs.TryRemove(player.SteamID, out _);
-                  Core.Logger.LogWarning($"[VIP_NightVip] Failed to verify VIP for {player.Controller?.PlayerName} ({player.SteamID}) after calling GiveClientVip. Is VIPGroup '{_config.VIPGroup}' valid in VIPCore?");
-              }
-          });
-        }
-      }
-      else if (_grantedByUs.TryGetValue(player.SteamID, out var granted) && !granted)
-      {
-        // Player has VIP, but we didn't fully mark them as granted yet
+        _vipApi.OverrideClientVipGroup(player, _config.VIPGroup);
         _grantedByUs[player.SteamID] = true;
+
+        var localizer = Core.Translation.GetPlayerLocalizer(player);
+        player.SendMessage(MessageType.Chat, localizer["nightvip.Granted", _config.Tag]);
       }
     }
     else
     {
-      if (_grantedByUs.TryGetValue(player.SteamID, out var wasGrantedByUs) && wasGrantedByUs)
+      if (_grantedByUs.TryRemove(player.SteamID, out _))
       {
         if (_vipApi.IsClientVip(player))
-          _vipApi.RemoveClientVip(player);
-
-        _grantedByUs.TryRemove(player.SteamID, out _);
+          _vipApi.ClearClientVipGroupOverride(player);
       }
     }
-  }
-
-  private int GetGrantTimeUnitsUntilEndOfWindow(DateTime currentTimeInTimeZone)
-  {
-    var nowTod = currentTimeInTimeZone.TimeOfDay;
-
-    TimeSpan remaining;
-    if (_startTime < _endTime)
-    {
-      remaining = _endTime - nowTod;
-    }
-    else
-    {
-      remaining = nowTod < _endTime
-        ? _endTime - nowTod
-        : (TimeSpan.FromDays(1) - nowTod) + _endTime;
-    }
-
-    var remainingSeconds = (int)Math.Ceiling(Math.Max(0, remaining.TotalSeconds));
-    if (remainingSeconds <= 0) return 0;
-
-    var timeMode = Core.Configuration.Manager.GetSection("vip").Get<VipCoreConfigSnapshot>()?.TimeMode ?? 0;
-    return timeMode switch
-    {
-      1 => Math.Max(1, (int)Math.Ceiling(remainingSeconds / 60.0)),
-      2 => Math.Max(1, (int)Math.Ceiling(remainingSeconds / 3600.0)),
-      3 => Math.Max(1, (int)Math.Ceiling(remainingSeconds / 86400.0)),
-      _ => Math.Max(1, remainingSeconds)
-    };
   }
 }

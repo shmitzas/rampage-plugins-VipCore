@@ -30,31 +30,19 @@ public sealed partial class VIPCore
 
         var vipService = serviceProvider.GetRequiredService<VipService>();
 
-        Task.Run(async () =>
+        Core.Scheduler.NextTick(() =>
         {
-            try
+            var localizer = Core.Translation.GetPlayerLocalizer(player);
+            var vipUser = vipService.GetVipUser(player.SteamID);
+
+            if (vipUser == null)
             {
-                await vipService.LoadPlayer(player);
-                var vipUser = vipService.GetVipUser(player.SteamID);
-
-                Core.Scheduler.NextTick(() =>
-                {
-                    var localizer = Core.Translation.GetPlayerLocalizer(player);
-
-                    if (vipUser == null)
-                    {
-                        player.SendMessage(MessageType.Chat, localizer["vip.NoAccess"]);
-                        return;
-                    }
-
-                    var menuService = serviceProvider.GetRequiredService<MenuService>();
-                    menuService.OpenVipMenu(player, vipUser);
-                });
+                player.SendMessage(MessageType.Chat, localizer["vip.NoAccess"]);
+                return;
             }
-            catch (Exception ex)
-            {
-                Core.Logger.LogError(ex, "[VIPCore] Failed to load VIP data for player.");
-            }
+
+            var menuService = serviceProvider.GetRequiredService<MenuService>();
+            menuService.OpenVipMenu(player, vipUser);
         });
     }
 }

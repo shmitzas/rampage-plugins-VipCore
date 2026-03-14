@@ -63,7 +63,6 @@ public partial class VIP_Money : BasePlugin {
       RefreshGameRulesAndMaxRounds();
     }
 
-    Core.GameEvent.HookPost<EventPlayerSpawn>(OnPlayerSpawn);
     RegisterVipFeaturesWhenReady();
   }
 
@@ -106,15 +105,6 @@ public partial class VIP_Money : BasePlugin {
   private void OnVipPlayerSpawn(IPlayer player)
   {
     TryApplyMoney(player);
-  }
-
-  private HookResult OnPlayerSpawn(EventPlayerSpawn @event)
-  {
-    var player = @event.UserIdPlayer;
-    if (player == null) return HookResult.Continue;
-
-    TryApplyMoney(player);
-    return HookResult.Continue;
   }
 
   private void TryApplyMoney(IPlayer player)
