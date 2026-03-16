@@ -26,7 +26,7 @@ public partial class VIP_NightVip : BasePlugin {
   private IVipCoreApiV1? _vipApi;
   private VIP_NightVipConfig _config = new();
 
-  private readonly ConcurrentDictionary<ulong, bool> _grantedByUs = new(); // true = used GiveClientVip, false = used OverrideClientVipGroup
+  private readonly HashSet<ulong> _grantedByUs = new();
 
   private CancellationTokenSource? _checkTimerCts;
 
@@ -159,7 +159,7 @@ public partial class VIP_NightVip : BasePlugin {
 
     // Nothing to clean up in DB since override is memory-only.
     // VIPCore will reload the real group from DB on next connect.
-    _grantedByUs.TryRemove(player.SteamID, out _);
+    _grantedByUs.Remove(player.SteamID);
   }
 
   private void CheckAllPlayers()
@@ -199,40 +199,28 @@ public partial class VIP_NightVip : BasePlugin {
 
     if (isVipTime)
     {
-      if (!_grantedByUs.ContainsKey(player.SteamID))
+      if (!_grantedByUs.Contains(player.SteamID))
       {
-        var localizer = Core.Translation.GetPlayerLocalizer(player);
-
-        if (!_vipApi.IsClientVip(player))
-        {
-          _vipApi.GiveClientVip(player, _config.VIPGroup, 0);
-          _grantedByUs[player.SteamID] = true;
-          player.SendMessage(MessageType.Chat, localizer["nightvip.Granted", _config.Tag]);
-        }
-        else
+        if (_vipApi.IsClientVip(player))
         {
           var nightVipWeight = _vipApi.GetVipGroupWeight(_config.VIPGroup);
-          var playerGroup = _vipApi.GetClientVipGroup(player);
-          var playerWeight = _vipApi.GetVipGroupWeight(playerGroup);
+          var playerWeight = _vipApi.GetVipGroupWeight(_vipApi.GetClientVipGroup(player));
 
           if (playerWeight > nightVipWeight)
             return;
-
-          _vipApi.OverrideClientVipGroup(player, _config.VIPGroup);
-          _grantedByUs[player.SteamID] = false;
-          player.SendMessage(MessageType.Chat, localizer["nightvip.Granted", _config.Tag]);
         }
+
+        _vipApi.OverrideClientVipGroup(player, _config.VIPGroup);
+        _grantedByUs.Add(player.SteamID);
+
+        var localizer = Core.Translation.GetPlayerLocalizer(player);
+        player.SendMessage(MessageType.Chat, localizer["nightvip.Granted", _config.Tag]);
       }
     }
     else
     {
-      if (_grantedByUs.TryRemove(player.SteamID, out var wasGiven))
-      {
-        if (wasGiven)
-          _vipApi.RemoveClientVip(player);
-        else if (_vipApi.IsClientVip(player))
-          _vipApi.ClearClientVipGroupOverride(player);
-      }
+      if (_grantedByUs.Remove(player.SteamID))
+        _vipApi.ClearClientVipGroupOverride(player);
     }
   }
 }
