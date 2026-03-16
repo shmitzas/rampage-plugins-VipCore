@@ -50,9 +50,12 @@ jobs:
 
           CONTRACT_PROJECT="./VIPCore.Contract/VIPCore.Contract.csproj"
           VIPCORE_PROJECT="./VIPCore/VIPCore.csproj"
-          COOKIES_CONTRACT_PROJECT="./Cookies/Cookies.Contract/Cookies.Contract.csproj"
-          COOKIES_PROJECT="./Cookies/Cookies/Cookies.csproj"
           MODULE_PROJECTS=$(find ./Modules -maxdepth 2 -name "*.csproj" -type f | sort)
+
+          echo "Cloning Cookies repo"
+          git clone https://github.com/SwiftlyS2-Plugins/Cookies.git _cookies
+          COOKIES_CONTRACT_PROJECT="./_cookies/Cookies.Contract/Cookies.Contract.csproj"
+          COOKIES_PROJECT="./_cookies/Cookies/Cookies.csproj"
 
           echo "Building contract (produces DLL + local nupkg): $CONTRACT_PROJECT"
           dotnet restore "$CONTRACT_PROJECT" \
@@ -122,7 +125,7 @@ jobs:
 
           cp -R "$VIPCORE_PUBLISH_DIR/." "release-staging/VIPCore/VIPCore/"
 
-          COOKIES_PUBLISH_DIR="./Cookies/Cookies/build/publish/Cookies"
+          COOKIES_PUBLISH_DIR="./_cookies/Cookies/build/publish/Cookies"
           if [ ! -d "$COOKIES_PUBLISH_DIR" ]; then
             echo "::error::Cookies publish directory not found: $COOKIES_PUBLISH_DIR"
             exit 1
