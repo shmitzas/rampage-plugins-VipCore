@@ -6,6 +6,7 @@ using SwiftlyS2.Shared.Misc;
 using SwiftlyS2.Shared.SchemaDefinitions;
 using VIPCore.Contract;
 using SwiftlyS2.Shared.GameEvents;
+using SwiftlyS2.Shared.Players;
 
 namespace VIP_Vampirism;
 
@@ -146,20 +147,45 @@ public partial class VIP_Vampirism : BasePlugin
 
         if (config.GiveHealthMode != GiveHealthMode.OnKill) return HookResult.Continue;
 
-        if (config.HealthReturnMode != HealthMode.Flat) return HookResult.Continue;
-
         var controller = attacker.Controller as CCSPlayerController;
         if (controller == null || !controller.IsValid) return HookResult.Continue;
 
         var pawn = controller.PlayerPawn.Value;
         if (pawn == null || !pawn.IsValid) return HookResult.Continue;
 
-        int giveHealth = config.Flat;
-        if (giveHealth == 0) return HookResult.Continue;
+        int giveHealth = 0;
+        if (config.HealthReturnMode == HealthMode.Flat)
+        {
+            giveHealth = config.Flat;
+        }
+        else if (config.HealthReturnMode == HealthMode.Percent)
+        {
+            float percent = config.Percent;
+            if (percent <= 0.0f) return HookResult.Continue;
+            giveHealth = (int)MathF.Round(pawn.MaxHealth * (percent / 100.0f));
+        }
+
+        if (giveHealth <= 0) return HookResult.Continue;
 
         var newHealth = pawn.Health + giveHealth;
         if (newHealth > 0)
-            SetNewHealthForPawn(pawn, newHealth);
+        {
+            var clampedNewHealth = newHealth;
+            if (clampedNewHealth > pawn.MaxHealth)
+                clampedNewHealth = pawn.MaxHealth;
+
+            var gainedHealth = clampedNewHealth - pawn.Health;
+            if (gainedHealth > 0)
+            {
+                SetNewHealthForPawn(pawn, clampedNewHealth);
+
+                var victim = Core.PlayerManager.GetPlayer(victimId);
+                var victimName = victim?.Controller?.PlayerName ?? "Unknown";
+
+                var localizer = Core.Translation.GetPlayerLocalizer(attacker);
+                attacker.SendMessage(MessageType.Chat, localizer["vampirism.GainedOnKill", gainedHealth, victimName]);
+            }
+        }
 
         return HookResult.Continue;
     }

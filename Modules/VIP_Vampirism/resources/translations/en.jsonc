@@ -1,3 +1,4 @@
 {
-  "vip.vampirism": "Vampirism"
+  "vip.vampirism": "Vampirism",
+  "vampirism.GainedOnKill": "Vampirism: [green]+{0} HP[/green] for killing [red]{1}[/red]"
 }

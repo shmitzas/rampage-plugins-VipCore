@@ -25,6 +25,16 @@ public class VipService(
     private VipConfig coreConfig => coreConfigMonitor.CurrentValue;
     private readonly ConcurrentDictionary<ulong, VipUser> _users = new();
 
+    private const long SteamId64Base = 76561197960265728L;
+
+    /// <summary>Converts SteamID64 to AccountID. Returns AccountID unchanged.</summary>
+    private static long NormalizeToAccountId(long id) =>
+        id >= SteamId64Base ? id - SteamId64Base : id;
+
+    /// <summary>Converts AccountID to SteamID64. Returns SteamID64 unchanged.</summary>
+    private static long ToSteamId64(long id) =>
+        id < SteamId64Base ? id + SteamId64Base : id;
+
     public bool IsClientVip(IPlayer player)
     {
         if (player.IsFakeClient) return false;
@@ -46,7 +56,14 @@ public class VipService(
     {
         if (player.IsFakeClient) return null;
 
-        var allGroups = (await userRepository.GetUserGroupsAsync((long)player.SteamID, serverIdentifier.ServerId)).ToList();
+        var steamId64 = (long)player.SteamID;
+        var accountId = NormalizeToAccountId(steamId64);
+
+        var allGroups = (await userRepository.GetUserGroupsAsync(steamId64, serverIdentifier.ServerId)).ToList();
+
+        // Also try the AccountID form in case VIP was added with the short Steam AccountID
+        if (allGroups.Count == 0 && accountId != steamId64)
+            allGroups = (await userRepository.GetUserGroupsAsync(accountId, serverIdentifier.ServerId)).ToList();
 
         if (allGroups.Count == 0) return null;
 
@@ -187,6 +204,7 @@ public class VipService(
 
     public async Task AddVip(long accountId, string name, string group, int time)
     {
+        accountId = NormalizeToAccountId(accountId);
         var existingUser = await userRepository.GetUserAsync(accountId, serverIdentifier.ServerId);
         long expires;
 
@@ -223,13 +241,25 @@ public class VipService(
 
     public async Task RemoveVip(long accountId)
     {
-        await userRepository.DeleteUserAsync(accountId, serverIdentifier.ServerId);
-        _users.TryRemove((ulong)accountId, out _);
+        var normalized = NormalizeToAccountId(accountId);
+        var steamId64 = ToSteamId64(accountId);
+
+        await userRepository.DeleteUserAsync(normalized, serverIdentifier.ServerId);
+        if (steamId64 != normalized)
+            await userRepository.DeleteUserAsync(steamId64, serverIdentifier.ServerId);
+
+        _users.TryRemove((ulong)steamId64, out _);
+        _users.TryRemove((ulong)normalized, out _);
     }
 
     public async Task RemoveVipGroup(long accountId, string group)
     {
-        await userRepository.DeleteUserGroupAsync(accountId, serverIdentifier.ServerId, group);
+        var normalized = NormalizeToAccountId(accountId);
+        var steamId64 = ToSteamId64(accountId);
+
+        await userRepository.DeleteUserGroupAsync(normalized, serverIdentifier.ServerId, group);
+        if (steamId64 != normalized)
+            await userRepository.DeleteUserGroupAsync(steamId64, serverIdentifier.ServerId, group);
     }
 
     public void InitializeFeatureForLoadedPlayers(string featureKey)
