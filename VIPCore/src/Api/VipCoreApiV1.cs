@@ -221,14 +221,6 @@ public class VipCoreApiV1 : IVipCoreApiV1
 
         var logging = Config.VipLogging;
 
-        if (!IsClientVip(player))
-        {
-            if (logging)
-                _core.Logger.LogWarning("[VIPCore] OverrideClientVipGroup: player {Name} ({SteamId}) is not VIP, skipping override to '{Group}'",
-                    player.Controller?.PlayerName, player.SteamID, group);
-            return;
-        }
-
         var currentGroup = GetClientVipGroup(player);
 
         VipService.OverrideVipGroup(player, group);
@@ -243,6 +235,17 @@ public class VipCoreApiV1 : IVipCoreApiV1
     {
         if (_serviceProvider == null) return;
         if (!player.IsValid) return;
+
+        // Temporary in-memory entries (non-VIP players granted via OverrideClientVipGroup)
+        // have no DB record — just remove them directly.
+        var existing = VipService.GetVipUser(player.SteamID);
+        if (existing?.IsTemporary == true)
+        {
+            var group = existing.group;
+            VipService.RemoveTempUser(player);
+            RaisePlayerRemoved(player, group);
+            return;
+        }
 
         Task.Run(async () =>
         {

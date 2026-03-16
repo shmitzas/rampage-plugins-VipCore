@@ -24,4 +24,6 @@ public class VipUser : User
 {
     public ConcurrentDictionary<string, FeatureState> FeatureStates { get; set; } = new();
     public List<string> OwnedGroups { get; set; } = new();
+    /// <summary>True when this entry was created in-memory only (no DB record). Used by OverrideClientVipGroup for non-VIP players.</summary>
+    public bool IsTemporary { get; set; } = false;
 }

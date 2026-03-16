@@ -79,7 +79,9 @@ public class VipService(
 
         if (validGroups.Count == 0)
         {
-            _users.TryRemove(player.SteamID, out _);
+            // Don't evict a temporary in-memory entry created by OverrideVipGroup
+            if (!(_users.TryGetValue(player.SteamID, out var current) && current.IsTemporary))
+                _users.TryRemove(player.SteamID, out _);
 
             if (expiredGroups.Count == 0) return null;
 
@@ -145,8 +147,22 @@ public class VipService(
 
         if (!_users.TryGetValue(player.SteamID, out var user))
         {
+            // Player has no VIP — create a temporary in-memory entry, no DB write
+            var tempUser = new VipUser
+            {
+                account_id = NormalizeToAccountId((long)player.SteamID),
+                name = player.Controller?.PlayerName ?? "unknown",
+                lastvisit = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                sid = serverIdentifier.ServerId,
+                group = group,
+                expires = 0,
+                IsTemporary = true
+            };
+            InitializeFeaturesForUser(tempUser);
+            _users[player.SteamID] = tempUser;
+
             if (logging)
-                core.Logger.LogWarning("[VIPCore] OverrideVipGroup: player {SteamId} not found in _users dict, cannot override", player.SteamID);
+                core.Logger.LogInformation("[VIPCore] OverrideVipGroup: {SteamId} had no VIP, created temporary in-memory entry with group '{Group}'", player.SteamID, group);
             return;
         }
 
@@ -154,9 +170,19 @@ public class VipService(
         user.group = group;
         user.FeatureStates.Clear();
         InitializeFeaturesForUser(user);
-        
+
         if (logging)
             core.Logger.LogInformation("[VIPCore] OverrideVipGroup: {SteamId} '{OldGroup}' -> '{NewGroup}', features count={Count}", player.SteamID, oldGroup, user.group, user.FeatureStates.Count);
+    }
+
+    public bool RemoveTempUser(IPlayer player)
+    {
+        if (_users.TryGetValue(player.SteamID, out var user) && user.IsTemporary)
+        {
+            _users.TryRemove(player.SteamID, out _);
+            return true;
+        }
+        return false;
     }
 
     public void UnloadPlayer(IPlayer player)
