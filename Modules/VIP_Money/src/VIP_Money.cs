@@ -5,6 +5,7 @@ using SwiftlyS2.Shared.GameEventDefinitions;
 using SwiftlyS2.Shared.Players;
 using SwiftlyS2.Shared.SchemaDefinitions;
 using SwiftlyS2.Shared.Misc;
+using SwiftlyS2.Shared.Events;
 using VIPCore.Contract;
 
 namespace VIP_Money;
@@ -58,6 +59,8 @@ public partial class VIP_Money : BasePlugin {
       Core.Scheduler.DelayBySeconds(1.0f, () => RefreshGameRulesAndMaxRounds());
     };
 
+    Core.GameEvent.HookPre<EventRoundEnd>(OnRoundEnd);
+
     if (hotReload)
     {
       RefreshGameRulesAndMaxRounds();
@@ -70,7 +73,6 @@ public partial class VIP_Money : BasePlugin {
     if (_vipApi != null)
     {
       _vipApi.OnCoreReady -= RegisterVipFeatures;
-      _vipApi.OnPlayerSpawn -= OnVipPlayerSpawn;
 
       if (_isFeatureRegistered)
         _vipApi.UnregisterFeature(FeatureKey);
@@ -99,12 +101,18 @@ public partial class VIP_Money : BasePlugin {
     );
 
     _isFeatureRegistered = true;
-    _vipApi.OnPlayerSpawn += OnVipPlayerSpawn;
   }
 
-  private void OnVipPlayerSpawn(IPlayer player)
+  private HookResult OnRoundEnd(EventRoundEnd @event)
   {
-    TryApplyMoney(player);
+    var players = Core.PlayerManager.GetAllPlayers();
+    foreach (var player in players)
+    {
+      if (player == null || player.IsFakeClient || !player.IsValid) continue;
+      TryApplyMoney(player);
+    }
+
+    return HookResult.Continue;
   }
 
   private void TryApplyMoney(IPlayer player)
