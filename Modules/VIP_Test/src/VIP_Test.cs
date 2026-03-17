@@ -172,7 +172,6 @@ public class VIP_Test : BasePlugin
                     var newCount = activeEndTime > now ? 1 : 0;
 
                     cookiesApi.Set(steamId, CookieCount, newCount);
-                    cookiesApi.Save(steamId);
                     resetCount++;
                 }
                 catch

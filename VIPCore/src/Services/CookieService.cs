@@ -48,7 +48,6 @@ public class CookieService(ISwiftlyCore core)
         try
         {
             _playerCookiesApi.Set((long)steamId, key, value!);
-            _playerCookiesApi.Save((long)steamId);
         }
         catch (Exception ex)
         {
